@@ -1,0 +1,489 @@
+﻿@page "/gestione"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@implements IDisposable
+@inject NavigationManager NavigationManager
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Gestione</PageTitle>
+
+<div class="gestione-mainbox animate-fadein">
+    <div class="elenco-classi-header">
+        <h2>
+            <i class="fas fa-cogs me-2"></i>
+            Gestione Dati
+        </h2>
+        <div class="elenco-classi-actions">
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(feedbackMessage))
+    {
+        <div class="alert alert-info mt-3 glass-card animate-fadein">
+            @feedbackMessage
+        </div>
+    }
+
+    <!-- Configurazione -->
+    <div class="glass-card gestione-config-card mb-4">
+        <div class="gestione-section-header">
+            <i class="fas fa-sliders-h me-2"></i> Configurazione
+        </div>
+        <div class="p-4">
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <label for="maxAnni" class="form-label fw-semibold">Numero Massimo di Anni</label>
+                    <input type="range" class="form-range glass-range" min="1" max="20" id="maxAnni" @bind="MaxAnni" @bind:event="oninput">
+                    <div class="badge badge-config ms-1">Valore: @MaxAnni</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="maxSezioni" class="form-label fw-semibold">Numero Massimo di Sezioni</label>
+                    <input type="range" class="form-range glass-range" min="1" max="20" id="maxSezioni" @bind="MaxSezioni" @bind:event="oninput">
+                    <div class="badge badge-config ms-1">Valore: @MaxSezioni</div>
+                </div>
+            </div>
+            <EditForm Model="this">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="inizioSezioni" class="form-label fw-semibold">Carattere Iniziale Sezioni</label>
+                        <input type="text" class="form-control glass-input" id="inizioSezioni" @bind="InizioSezioni" maxlength="1">
+                        <ValidationMessage For="@(() => InizioSezioni)" />
+                    </div>
+                </div>
+                <button class="btn btn-primary glass-btn" type="submit" @onclick="SalvaConfigurazione">
+                    <i class="fas fa-save me-1"></i> Salva Configurazione
+                </button>
+            </EditForm>
+        </div>
+    </div>
+
+    <!-- Anni Formativi -->
+    <div class="glass-card mb-4">
+        <div class="gestione-section-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-calendar-alt me-2"></i> Anni Formativi</span>
+            <button class="btn btn-success glass-btn" @onclick="CreaAnnoFormativo">
+                <i class="fas fa-plus-circle"></i> Aggiungi
+            </button>
+        </div>
+        <div class="p-3">
+            <div class="table-responsive">
+                <table class="table gestione-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th><i class="fas fa-calendar-alt me-1"></i> Nome</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var anno in AnniFormativi)
+                        {
+                            <tr @onclick="() => NavigaADettaglioAnnoFormativo(anno.Id)" style="cursor:pointer;">
+                                <td>@anno.Id</td>
+                                <td>
+                                    <span class="badge badge-annoformativo">
+                                        <i class="fas fa-calendar-alt me-1"></i> @anno.Nome
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="azioni-btn-wrap">
+                                        <button class="btn btn-info btn-sm glass-btn" @onclick="() => NavigaADettaglioAnnoFormativo(anno.Id)" @onclick:stopPropagation>
+                                            <i class="fas fa-eye"></i> Dettagli
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Specializzazioni -->
+    <div class="glass-card mb-4">
+        <div class="gestione-section-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-graduation-cap me-2"></i> Specializzazioni</span>
+            <button class="btn btn-success glass-btn" @onclick="CreaSpecializzazione">
+                <i class="fas fa-plus-circle"></i> Aggiungi
+            </button>
+        </div>
+        <div class="p-3">
+            <div class="table-responsive">
+                <table class="table gestione-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th><i class="fas fa-graduation-cap me-1"></i> Nome</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var specializzazione in Specializzazioni)
+                        {
+                            <tr>
+                                <td>@specializzazione.Id</td>
+                                <td>
+                                    <span class="badge badge-specializzazione">
+                                        <i class="fas fa-graduation-cap me-1"></i> @specializzazione.Nome
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="azioni-btn-wrap">
+                                        <button class="btn btn-info btn-sm glass-btn" @onclick="() => NavigaADettaglioSpecializzazione(specializzazione.Id)">
+                                            <i class="fas fa-eye"></i> Dettagli
+                                        </button>
+                                        <button class="btn btn-warning btn-sm glass-btn" @onclick="() => NavigaAModificaSpecializzazione(specializzazione.Id)">
+                                            <i class="fas fa-edit"></i> Modifica
+                                        </button>
+                                        <button class="btn btn-danger btn-sm glass-btn" @onclick="async () => await EliminaSpecializzazione(specializzazione.Id)">
+                                            <i class="fas fa-trash"></i> Elimina
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Materie -->
+    <div class="glass-card mb-4">
+        <div class="gestione-section-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-book-open me-2"></i> Materie</span>
+            <button class="btn btn-success glass-btn" @onclick="CreaMateria">
+                <i class="fas fa-plus-circle"></i> Aggiungi
+            </button>
+        </div>
+        <div class="p-3">
+            <div class="table-responsive">
+                <table class="table gestione-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th><i class="fas fa-book-open me-1"></i> Nome</th>
+                            <th>Moduli associati</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var materia in Materie)
+                        {
+                            <tr>
+                                <td>@materia.Id</td>
+                                <td>
+                                    <span class="badge badge-materia">
+                                        <i class="fas fa-book-open me-1"></i> @materia.Nome
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (materia.Moduli != null && materia.Moduli.Any())
+                                    {
+                                        <ul class="mb-0">
+                                            @foreach (var moduloMateria in materia.Moduli)
+                                            {
+                                                <li>
+                                                    <span class="badge badge-modulo">
+                                                        <i class="fas fa-puzzle-piece me-1"></i> @moduloMateria.Modulo?.Nome
+                                                    </span>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Nessun modulo</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="azioni-btn-wrap">
+                                        <button class="btn btn-info btn-sm glass-btn" @onclick="() => NavigaADettaglioMateria(materia.Id)">
+                                            <i class="fas fa-eye"></i> Dettagli
+                                        </button>
+                                        <button class="btn btn-warning btn-sm glass-btn" @onclick="() => NavigaAModificaMateria(materia.Id)">
+                                            <i class="fas fa-edit"></i> Modifica
+                                        </button>
+                                        <button class="btn btn-danger btn-sm glass-btn"
+                                                @onclick="() => ConfermaEliminazioneMateria(materia)">
+                                            <i class="fas fa-trash"></i> Elimina
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collegi Docente -->
+    <div class="glass-card mb-4">
+        <div class="gestione-section-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-users-gear me-2"></i> Collegi Docente</span>
+            <button class="btn btn-success glass-btn" @onclick="CreaCollegioDocente">
+                <i class="fas fa-plus-circle"></i> Aggiungi
+            </button>
+        </div>
+        <div class="p-3">
+            <div class="table-responsive">
+                <table class="table gestione-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th><i class="fas fa-users-gear me-1"></i> Nome</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var collegio in CollegiDocenti)
+                        {
+                            <tr>
+                                <td>@collegio.Id</td>
+                                <td>
+                                    <span class="badge badge-collegio">
+                                        <i class="fas fa-users-gear me-1"></i> @collegio.Nome
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="azioni-btn-wrap">
+                                        <button class="btn btn-info btn-sm glass-btn" @onclick="() => NavigaADettaglioCollegioDocente(collegio.Id)">
+                                            <i class="fas fa-eye"></i> Dettagli
+                                        </button>
+                                        <button class="btn btn-warning btn-sm glass-btn" @onclick="() => NavigaAModificaCollegio(collegio.Id)">
+                                            <i class="fas fa-edit"></i> Modifica
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* POPUP CONFERMA ELIMINAZIONE MATERIA *@
+    @if (showConfermaEliminazioneMateria && materiaDaEliminare != null)
+    {
+        <div class="popup-overlay">
+            <div class="popup-modal glass-card">
+                <h5>
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    Conferma eliminazione materia
+                </h5>
+                <p>
+                    Sei sicuro di voler eliminare la materia
+                    <span class="fw-bold">@materiaDaEliminare.Nome</span>?
+                </p>
+                @if (valutazioniCollegateCount > 0)
+                {
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Attenzione: ci sono <b>@valutazioniCollegateCount</b> valutazioni collegate a questa materia.<br />
+                        Eliminando la materia, tutte le valutazioni collegate verranno <b>cancellate definitivamente</b>.
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Eliminando la materia, tutte le eventuali valutazioni collegate verranno cancellate.
+                    </div>
+                }
+                <div class="d-flex justify-content-end mt-4 gap-2">
+                    <button class="btn btn-secondary glass-btn" @onclick="AnnullaEliminazioneMateria">
+                        Annulla
+                    </button>
+                    <button class="btn btn-danger glass-btn" @onclick="ConfermaEliminazioneMateriaFinale">
+                        Elimina definitivamente
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    private List<AnnoFormativo> AnniFormativi { get; set; } = new List<AnnoFormativo>();
+    private List<Models.CollegioDocenti> CollegiDocenti { get; set; } = new List<Models.CollegioDocenti>();
+    private List<Corso> Specializzazioni { get; set; } = new List<Corso>();
+    private List<Sezione> Sezioni { get; set; } = new List<Sezione>();
+    private List<Anno> Anni { get; set; } = new List<Anno>();
+    private List<Materia> Materie { get; set; } = new List<Materia>();
+    private string feedbackMessage = string.Empty;
+
+    private int MaxAnni { get; set; }
+    private int MaxSezioni { get; set; }
+    private string InizioSezioni { get; set; } = "A";
+    private bool showConfermaEliminazioneMateria = false;
+    private bool _disposed = false;
+    private Materia? materiaDaEliminare;
+    private int valutazioniCollegateCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AnniFormativi = await DbContext.AnniFormativi.ToListAsync();
+        CollegiDocenti = await DbContext.CollegiDocenti.ToListAsync();
+        Specializzazioni = await DbContext.Corsi.ToListAsync();
+        Sezioni = await DbContext.Sezioni.ToListAsync();
+        Anni = await DbContext.Anni.ToListAsync();
+
+        Materie = await DbContext.Materie
+            .Include(m => m.Moduli)
+                .ThenInclude(mm => mm.Modulo)
+            .ToListAsync();
+
+        _disposed = false;
+    }
+
+    private async Task SalvaConfigurazione()
+    {
+        try
+        {
+            var anniEsistenti = await DbContext.Anni.OrderBy(a => a.Nome).ToListAsync();
+            var anniDesiderati = Enumerable.Range(1, MaxAnni)
+                .Select(i => $"{i}°")
+                .ToList();
+
+            foreach (var nomeAnno in anniDesiderati.Except(anniEsistenti.Select(a => a.Nome)))
+            {
+                DbContext.Anni.Add(new Anno { Nome = nomeAnno });
+            }
+            foreach (var anno in anniEsistenti.Where(a => !anniDesiderati.Contains(a.Nome)))
+            {
+                DbContext.Anni.Remove(anno);
+            }
+
+            char inizio = string.IsNullOrEmpty(InizioSezioni) ? 'A' : InizioSezioni[0];
+            var sezioniDesiderate = Enumerable.Range(0, MaxSezioni)
+                .Select(i => ((char)(inizio + i)).ToString())
+                .ToList();
+            var sezioniEsistenti = await DbContext.Sezioni.OrderBy(s => s.Nome).ToListAsync();
+
+            foreach (var nomeSezione in sezioniDesiderate.Except(sezioniEsistenti.Select(s => s.Nome)))
+            {
+                DbContext.Sezioni.Add(new Sezione { Nome = nomeSezione });
+            }
+            foreach (var sezione in sezioniEsistenti.Where(s => !sezioniDesiderate.Contains(s.Nome)))
+            {
+                DbContext.Sezioni.Remove(sezione);
+            }
+
+            await DbContext.SaveChangesAsync();
+
+            feedbackMessage = "Configurazione salvata con successo!";
+        }
+        catch (Exception ex)
+        {
+            feedbackMessage = $"Errore durante il salvataggio della configurazione: {ex.Message}";
+        }
+    }
+
+    public void CreaMateria() => NavigationManager.NavigateTo("/materie/crea");
+    private void NavigaADettaglioMateria(int id) => NavigationManager.NavigateTo($"/materie/dettagli/{id}");
+    private void NavigaAModificaMateria(int id) => NavigationManager.NavigateTo($"/materie/modifica/{id}");
+
+    private async Task ConfermaEliminazioneMateria(Materia materia)
+    {
+        materiaDaEliminare = materia;
+        valutazioniCollegateCount = await DbContext.ValutazioniFinali.CountAsync(v => v.MateriaId == materia.Id);
+        showConfermaEliminazioneMateria = true;
+        if (!_disposed)
+            StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+    }
+
+    private void AnnullaEliminazioneMateria()
+    {
+        showConfermaEliminazioneMateria = false;
+        materiaDaEliminare = null;
+        valutazioniCollegateCount = 0;
+        if (!_disposed)
+            InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ConfermaEliminazioneMateriaFinale()
+    {
+        if (materiaDaEliminare != null)
+        {
+            var valutazioni = DbContext.ValutazioniFinali.Where(v => v.MateriaId == materiaDaEliminare.Id);
+            DbContext.ValutazioniFinali.RemoveRange(valutazioni);
+            DbContext.Materie.Remove(materiaDaEliminare);
+            await DbContext.SaveChangesAsync();
+
+            Materie = await DbContext.Materie
+                .Include(m => m.Moduli)
+                    .ThenInclude(mm => mm.Modulo)
+                .ToListAsync();
+
+            feedbackMessage = "Materia e relative valutazioni eliminate con successo!";
+        }
+        showConfermaEliminazioneMateria = false;
+        materiaDaEliminare = null;
+        valutazioniCollegateCount = 0;
+        if (!_disposed)
+            await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task EliminaSpecializzazione(int id)
+    {
+        var specializzazione = await DbContext.Corsi.FindAsync(id);
+        if (specializzazione != null)
+        {
+            // Controllo se esistono classi collegate a questa specializzazione
+            bool hasClassi = await DbContext.Classi.AnyAsync(c => c.CorsoId == id);
+            if (hasClassi)
+            {
+                feedbackMessage = "Impossibile eliminare la specializzazione: esistono classi collegate.";
+                return;
+            }
+
+            DbContext.Corsi.Remove(specializzazione);
+            await DbContext.SaveChangesAsync();
+            Specializzazioni = await DbContext.Corsi.ToListAsync();
+            feedbackMessage = "Specializzazione eliminata con successo!";
+        }
+    }
+
+    public void CreaSezione() => NavigationManager.NavigateTo("/sezioni/crea");
+    public void CreaAnno() => NavigationManager.NavigateTo("/anni/crea");
+    private async Task EliminaSezione(int id)
+    {
+        var sezione = await DbContext.Sezioni.FindAsync(id);
+        if (sezione != null)
+        {
+            DbContext.Sezioni.Remove(sezione);
+            await DbContext.SaveChangesAsync();
+            Sezioni = await DbContext.Sezioni.ToListAsync();
+        }
+    }
+    private async Task EliminaAnno(int id)
+    {
+        var anno = await DbContext.Anni.FindAsync(id);
+        if (anno != null)
+        {
+            DbContext.Anni.Remove(anno);
+            await DbContext.SaveChangesAsync();
+            Anni = await DbContext.Anni.ToListAsync();
+        }
+    }
+
+    public void CreaAnnoFormativo() => NavigationManager.NavigateTo("/anniformativi/crea");
+    public void CreaCollegioDocente() => NavigationManager.NavigateTo("/collegidocente/crea");
+    public void CreaSpecializzazione() => NavigationManager.NavigateTo("/specializzazioni/crea");
+    private void NavigaADettaglioAnnoFormativo(int id) => NavigationManager.NavigateTo($"/anniformativi/dettagli/{id}");
+    private void NavigaADettaglioCollegioDocente(int id) => NavigationManager.NavigateTo($"/collegidocente/dettagli/{id}");
+    private void NavigaADettaglioSpecializzazione(int id) => NavigationManager.NavigateTo($"/specializzazioni/dettagli/{id}");
+    private void NavigaAModificaSpecializzazione(int id) => NavigationManager.NavigateTo($"/specializzazioni/modifica/{id}");
+    private void NavigaAModificaCollegio(int id) => NavigationManager.NavigateTo($"/collegidocente/modifica/{id}");
+}

@@ -1,0 +1,181 @@
+﻿/* Tabelle */
+.valutazioni-studente-table,
+.valutazioni-studente-table th,
+.valutazioni-studente-table td {
+    border: 1px solid #dee2e6;
+    border-collapse: collapse;
+}
+
+.valutazioni-studente-table {
+    width: 100%;
+    background: #fff;
+    font-size: 1rem;
+}
+
+    .valutazioni-studente-table th,
+    .valutazioni-studente-table td {
+        padding: 0.5rem 0.75rem;
+        vertical-align: top;
+        text-align: left;
+    }
+
+    .valutazioni-studente-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #343a40;
+    }
+
+    .valutazioni-studente-table tr:nth-child(even) {
+        background: #f6f6f6;
+    }
+
+/* Titoli e intestazioni */
+h2, h4 {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+    h4 i {
+        color: #6c757d;
+    }
+
+/* Bottoni */
+.btn {
+    border-radius: 4px;
+    font-size: 0.95rem;
+    padding: 0.35rem 0.8rem;
+    border: none;
+    transition: background 0.2s;
+}
+
+.btn-primary {
+    background: #2c3e50;
+    color: #fff;
+}
+
+.btn-success {
+    background: #218838;
+    color: #fff;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-outline-primary {
+    background: transparent;
+    color: #2c3e50;
+    border: 1px solid #2c3e50;
+}
+
+.btn-outline-success {
+    background: transparent;
+    color: #218838;
+    border: 1px solid #218838;
+}
+
+.btn-danger {
+    background: #c82333;
+    color: #fff;
+}
+
+.btn:focus, .btn:hover {
+    filter: brightness(0.95);
+    outline: none;
+}
+
+/* Badge */
+.badge {
+    border-radius: 0.25rem;
+    padding: 0.3em 0.7em;
+    font-size: 0.95em;
+    font-weight: 500;
+}
+
+    .badge.bg-success {
+        background: #218838;
+        color: #fff;
+    }
+
+    .badge.bg-primary {
+        background: #2c3e50;
+        color: #fff;
+    }
+
+    .badge.bg-info {
+        background: #17a2b8;
+        color: #fff;
+    }
+
+    .badge.bg-secondary {
+        background: #6c757d;
+        color: #fff;
+    }
+
+/* Form */
+.form-control,
+.form-select {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+    padding: 0.35rem 0.6rem;
+    background: #fff;
+    color: #2c3e50;
+    transition: border-color 0.2s;
+}
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #2c3e50;
+        outline: none;
+        box-shadow: none;
+    }
+
+textarea.form-control {
+    min-height: 2.5em;
+    resize: vertical;
+}
+
+/* Messaggi di errore */
+.text-danger {
+    color: #c82333 !important;
+    font-size: 0.95em;
+}
+
+/* Spaziature e layout */
+.row.gy-4 > [class^="col-"] {
+    margin-bottom: 2rem;
+}
+
+.fw-bold {
+    font-weight: 600;
+}
+
+.mt-2 {
+    margin-top: 0.5rem !important;
+}
+
+.mb-0 {
+    margin-bottom: 0 !important;
+}
+
+/* Icone */
+i.fas {
+    vertical-align: middle;
+    margin-right: 0.3em;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .valutazioni-studente-table th,
+    .valutazioni-studente-table td {
+        font-size: 0.95rem;
+        padding: 0.4rem 0.5rem;
+    }
+
+    h2, h4 {
+        font-size: 1.1rem;
+    }
+}

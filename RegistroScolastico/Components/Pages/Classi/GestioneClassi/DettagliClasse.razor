@@ -1,0 +1,323 @@
+﻿@page "/classi/dettagli/{Id:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@inject ILogger<DettagliClasse> Logger
+
+<PageTitle>Dettagli Classe @(Classe?.Anno?.Nome)@(Classe?.Sezione?.Nome)</PageTitle>
+
+<div class="dettagli-classe-mainbox">
+    <div class="dettagli-classe-container">
+        <div class="dettagli-classe-container">
+            <div class="dettagli-classe-header">
+                <h2>
+                    <i class="fas fa-layer-group me-2"></i>
+                    Dettagli Classe
+                </h2>
+                <button class="btn btn-secondary dettagli-classe-back-btn" @onclick="GoBack" title="Torna all'elenco classi">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="dettagli-classe-loader">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Caricamento...</span>
+                    </div>
+                    <p class="ms-2">Caricamento dettagli classe...</p>
+                </div>
+            }
+            else if (Classe == null)
+            {
+                <div class="alert alert-danger glass-card" role="alert">
+                    <h4 class="alert-heading"><i class="fas fa-triangle-exclamation me-2"></i>Errore!</h4>
+                    <p>Classe non trovata con ID: <strong>@Id</strong></p>
+                    <hr>
+                    <p class="mb-0">Verifica l'ID o torna all'elenco delle classi.</p>
+                    <button class="btn btn-secondary mt-2" @onclick="GoBack">
+                        <i class="fas fa-arrow-left"></i> Torna all'elenco
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="glass-card dettagli-classe-info-card animate-fadein">
+                    <div class="card-body">
+                        <h3 class="card-title text-primary mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Info Classe
+                        </h3>
+                        <div class="classe-info-badges text-center mb-3">
+                            <div class="row justify-content-center gy-2">
+                                <div class="col-12 col-md-4 d-flex justify-content-center">
+                                    <span class="badge badge-anno badge-info-big">
+                                        <i class="fas fa-calendar-alt me-1"></i>
+                                        @Classe.Anno?.Nome
+                                    </span>
+                                </div>
+                                <div class="col-12 col-md-4 d-flex justify-content-center">
+                                    <span class="badge badge-sezione badge-info-big">
+                                        <i class="fas fa-th-large me-1"></i>
+                                        @Classe.Sezione?.Nome
+                                    </span>
+                                </div>
+                                <div class="col-12 col-md-4 d-flex justify-content-center">
+                                    <span class="badge badge-corso badge-info-big">
+                                        <i class="fas fa-graduation-cap me-1"></i>
+                                        @Classe.Corso?.Nome
+                                    </span>
+                                </div>
+                            </div>
+                            <hr class="classe-info-divider mt-4 mb-2" />
+                        </div>
+                        <div class="classe-info-extra text-center mb-4">
+                            <div class="row justify-content-center gy-2">
+                                <div class="col-12 col-md-6 d-flex justify-content-center align-items-center mb-2 mb-md-0">
+                                    <span class="classe-info-extra-item">
+                                        <strong>
+                                            <i class="fas fa-users-gear me-1"></i>Collegio Docenti:
+                                        </strong>
+                                        <span class="ms-1">@((Classe.CollegioDocenti?.Nome) ?? "Nessuno")</span>
+                                    </span>
+                                </div>
+                                <div class="col-12 col-md-6 d-flex justify-content-center align-items-center">
+                                    <span class="classe-info-extra-item">
+                                        <strong>
+                                            <i class="fas fa-calendar me-1"></i>Data Creazione:
+                                        </strong>
+                                        <span class="ms-1">@Classe.DataCreazione.ToShortDateString()</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <hr class="classe-info-divider mt-4 mb-2" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- studenti -->
+                <div class="glass-card mt-4 animate-fadein">
+                    <div class="card-body">
+                        <h4>
+                            <i class="fas fa-users me-2"></i>
+                            Studenti della Classe
+                            <span class="badge badge-studenti">@Classe.Studenti?.Count()</span>
+                        </h4>
+                        @if (Classe.Studenti != null && Classe.Studenti.Any())
+                        {
+                            <ul class="list-group list-group-flush mt-3">
+                                @foreach (var studente in Classe.Studenti.OrderBy(s => s.Utente?.Profilo?.Cognome))
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center glass-list-item">
+                                        <span>
+                                            <i class="fas fa-user-graduate text-primary me-2"></i>
+                                            <strong>@(studente.Utente?.Profilo?.Cognome) @(studente.Utente?.Profilo?.Nome)</strong>
+                                        </span>
+                                        <span class="d-flex gap-2">
+                                            <a href="/studenti/dettagli/@studente.UtenteId" class="btn btn-sm btn-outline-info glass-btn" title="Dettagli Studente">
+                                                <i class="fas fa-user"></i>
+                                            </a>
+                                            <a href="/studenti/valutazioni/@studente.UtenteId" class="btn btn-sm btn-outline-primary glass-btn" title="Valutazioni">
+                                                <i class="fas fa-chart-line"></i>
+                                            </a>
+                                        </span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mt-3" role="alert">
+                                Nessuno studente iscritto a questa classe.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- materie -->
+                <div class="glass-card mt-4 animate-fadein">
+                    <div class="card-body">
+                        <h4>
+                            <i class="fas fa-book-open me-2"></i>
+                            Materie Insegnate
+                            <span class="badge badge-materia">@Classe.MaterieClassi?.Count()</span>
+                        </h4>
+                        @if (Classe.MaterieClassi != null && Classe.MaterieClassi.Any())
+                        {
+                            <ul class="list-group list-group-flush mt-3">
+                                @foreach (var mc in Classe.MaterieClassi
+                               .GroupBy(mc => new { mc.MateriaId, mc.DocenteId })
+                               .Select(g => g.First())
+                               .OrderBy(mc => mc.Materia?.Nome)
+                               .ThenBy(mc => mc.Docente?.Utente?.Profilo?.Cognome)
+                               .ThenBy(mc => mc.Docente?.Utente?.Profilo?.Nome))
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center glass-list-item">
+                                        <div>
+                                            <span class="badge badge-materia me-1">
+                                                <i class="fas fa-book"></i> @mc.Materia?.Nome
+                                            </span>
+                                            <span class="text-muted small">
+                                                <i class="fas fa-chalkboard-teacher ms-1"></i>
+                                                @mc.Docente?.Utente?.Profilo?.Cognome @mc.Docente?.Utente?.Profilo?.Nome
+                                            </span>
+                                        </div>
+                                        <a href="/materie/dettagli/@mc.MateriaId" class="btn btn-sm btn-outline-info glass-btn" title="Dettagli Materia">
+                                            <i class="fas fa-book-open"></i>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mt-3" role="alert">
+                                Nessuna materia associata a questa classe.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 flex-wrap mt-4">
+                    <button class="btn btn-secondary glass-btn" @onclick="GoBack">
+                        <i class="fas fa-arrow-left"></i> Torna all'elenco classi
+                    </button>
+                    <button class="btn btn-warning glass-btn" @onclick="EditClass" title="Modifica">
+                        <i class="fas fa-edit"></i> Modifica
+                    </button>
+                    <button class="btn btn-danger glass-btn" @onclick="ConfirmDelete" title="Elimina">
+                        <i class="fas fa-trash"></i> Elimina
+                    </button>
+                </div>
+            }
+
+            <!-- conferma eliminazione -->
+            @if (showDeleteConfirm)
+            {
+                <div class="modal fade show d-block" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content glass-card">
+                            <div class="modal-header bg-danger text-white">
+                                <h5><i class="fas fa-trash me-2"></i>Conferma Eliminazione</h5>
+                                <button type="button" class="btn-close btn-close-white" @onclick="CancelDelete"></button>
+                            </div>
+                            <div class="modal-body">
+                                Sei sicuro di voler eliminare la classe:
+                                <strong>@Classe?.Anno?.Nome @Classe?.Sezione?.Nome (@Classe?.Corso?.Nome)</strong>?
+                                <br />
+                                <span class="text-danger small">Questa azione è irreversibile e disassocierà studenti e materie.</span>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary glass-btn" @onclick="CancelDelete">Annulla</button>
+                                <button type="button" class="btn btn-danger glass-btn" @onclick="DeleteClass">Conferma Eliminazione</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-backdrop fade show"></div>
+            }
+
+            @if (!string.IsNullOrEmpty(statusMessage))
+            {
+                <div class="mt-3 alert @(isError ? "alert-danger" : "alert-success") glass-card">
+                    @statusMessage
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Classe Classe { get; set; } = new Classe();
+    private bool isLoading = true;
+    private bool showDeleteConfirm = false;
+    private string statusMessage = string.Empty;
+    private bool isError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        await LoadClassDetails();
+        isLoading = false;
+    }
+
+    private async Task LoadClassDetails()
+    {
+        try
+        {
+            Classe = await DbContext.Classi
+                                .Include(c => c.AnnoFormativo)
+                                .Include(c => c.Corso)
+                                .Include(c => c.CollegioDocenti)
+                                .Include(c => c.Anno)
+                                .Include(c => c.Sezione)
+                                .Include(c => c.Studenti)
+                                    .ThenInclude(s => s.Utente)
+                                        .ThenInclude(u => u.Profilo)
+                                .Include(c => c.MaterieClassi)
+                                    .ThenInclude(mc => mc.Materia)
+                                .Include(c => c.MaterieClassi)
+                                    .ThenInclude(mc => mc.Docente)
+                                        .ThenInclude(d => d.Utente)
+                                            .ThenInclude(u => u.Profilo)
+                                .FirstOrDefaultAsync(c => c.Id == Id)
+                                ?? new Classe();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading class details");
+            statusMessage = $"Errore durante il caricamento della classe: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void EditClass()
+    {
+        Navigation.NavigateTo($"/classi/modifica/{Classe.Id}");
+    }
+
+    private void ConfirmDelete()
+    {
+        showDeleteConfirm = true;
+        statusMessage = string.Empty;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirm = false;
+    }
+
+    private async Task DeleteClass()
+    {
+        try
+        {
+            if (Classe != null)
+            {
+                DbContext.Classi.Remove(Classe);
+                await DbContext.SaveChangesAsync();
+                statusMessage = "Classe eliminata con successo!";
+                isError = false;
+                Navigation.NavigateTo("/classi", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting class");
+            statusMessage = $"Errore durante l'eliminazione della classe: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/classi");
+    }
+}

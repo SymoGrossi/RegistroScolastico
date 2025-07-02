@@ -1,0 +1,94 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+
+@code {
+    private string SectionTitle { get; set; } = "HOME";
+    private string SectionIcon { get; set; } = "fa-home";
+    private string BgGradient { get; set; } = "bg-home";
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += (_, __) => UpdateSection();
+        UpdateSection();
+    }
+
+    private void UpdateSection()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri).ToLower();
+
+        if (string.IsNullOrWhiteSpace(path) || path == "/")
+        {
+            SectionTitle = "HOME";
+            SectionIcon = "fa-home";
+            BgGradient = "bg-home";
+        }
+        else
+        {
+            var first = path.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+            switch (first)
+            {
+                case "studenti":
+                    SectionTitle = "STUDENTI";
+                    SectionIcon = "fa-user-graduate";
+                    BgGradient = "bg-studenti";
+                    break;
+                case "docenti":
+                    SectionTitle = "DOCENTI";
+                    SectionIcon = "fa-chalkboard-teacher";
+                    BgGradient = "bg-docenti";
+                    break;
+                case "classi":
+                    SectionTitle = "CLASSI";
+                    SectionIcon = "fa-layer-group";
+                    BgGradient = "bg-classi";
+                    break;
+                case "gestione":
+                    SectionTitle = "PERSONALIZZA";
+                    SectionIcon = "fa-sliders";
+                    BgGradient = "bg-gestione";
+                    break;
+                case "impostazioni":
+                    SectionTitle = "IMPOSTAZIONI";
+                    SectionIcon = "fa-cog";
+                    BgGradient = "bg-impostazioni";
+                    break;
+                case "calendario":
+                    SectionTitle = "CALENDARIO";
+                    SectionIcon = "fa-calendar-alt";
+                    BgGradient = "bg-calendario";
+                    break;
+                case "valutazioni":
+                    SectionTitle = "VALUTAZIONI";
+                    SectionIcon = "fa-star";
+                    BgGradient = "bg-valutazioni";
+                    break;
+                default:
+                    SectionTitle = first.ToUpper();
+                    SectionIcon = "fa-compass";
+                    BgGradient = "bg-default";
+                    break;
+            }
+        }
+        StateHasChanged();
+    }
+}
+
+<div class="main-layout-super @BgGradient">
+    <NavMenu />
+    <div class="content-area-super glassmorphism">
+        <header class="main-header-super main-header-section">
+            <div class="header-section animate-slidein">
+                <h2 class="main-title-small neon-text">
+                    <i class="fas @SectionIcon text-primary"></i>
+                    @SectionTitle
+                </h2>
+            </div>
+        </header>
+        <main class="main-content-super">
+            @Body
+        </main>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+<link rel="stylesheet" href="css/NavMenuSuper.css" />

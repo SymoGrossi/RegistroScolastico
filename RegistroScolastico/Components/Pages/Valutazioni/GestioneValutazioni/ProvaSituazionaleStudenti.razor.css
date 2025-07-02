@@ -1,0 +1,31 @@
+﻿.valutazioni-table {
+    font-size: 0.9rem;
+}
+
+    .valutazioni-table th {
+        background-color: #f8f9fa;
+        vertical-align: middle;
+    }
+
+    .valutazioni-table .table-primary > td {
+        background-color: #d1e7ff;
+        font-weight: bold;
+    }
+
+    .valutazioni-table .table-info > td {
+        background-color: #cff4fc;
+        font-weight: bold;
+    }
+
+    .valutazioni-table .table-secondary > td {
+        background-color: #e9ecef;
+        font-weight: bold;
+    }
+
+    .valutazioni-table tbody tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+    .valutazioni-table select {
+        min-width: 120px;
+    }

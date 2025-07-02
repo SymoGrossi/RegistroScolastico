@@ -1,0 +1,126 @@
+﻿@page "/collegidocente/crea"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Aggiungi Collegio Docenti</PageTitle>
+
+<div class="aggiungi-collegio-mainbox animate-fadein">
+    <div class="aggiungi-collegio-container">
+        <div class="aggiungi-collegio-header">
+            <h2>
+                <i class="fas fa-users-gear me-2"></i>
+                Aggiungi Collegio Docenti
+            </h2>
+        </div>
+
+        <EditForm Model="@CollegioDocente" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="glass-card p-4 mt-3">
+                <div class="mb-4">
+                    <label for="nome" class="form-label fw-semibold text-primary">
+                        <i class="fas fa-pen me-1"></i> Nome Collegio
+                    </label>
+                    <InputText id="nome" class="form-control glass-input" @bind-Value="CollegioDocente.Nome" maxlength="100" />
+                    <ValidationMessage For="@(() => CollegioDocente.Nome)" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold text-primary">
+                        <i class="fas fa-chalkboard-teacher me-1"></i> Docenti da aggiungere
+                    </label>
+                    <div class="docenti-list-glass">
+                        @if (DocentiDisponibili.Count == 0)
+                        {
+                            <div class="text-muted text-center py-3">Nessun docente disponibile.</div>
+                        }
+                        else
+                        {
+                            @foreach (var docente in DocentiDisponibili)
+                            {
+                                if (docente?.Utente?.Profilo == null)
+                                {
+                                    <div class="text-danger">Errore: docente o dati utente non validi.</div>
+                                    continue;
+                                }
+                                <label class="docente-checkbox glass-list-item d-flex align-items-center mb-2">
+                                    <input type="checkbox"
+                                           class="form-check-input me-2"
+                                           value="@docente.UtenteId"
+                                           @onchange="e => OnDocenteCheckedChanged(e, docente.UtenteId)"
+                                           checked="@DocentiSelezionati.Contains(docente.UtenteId)" />
+                                    <span>
+                                        <i class="fas fa-user-tie text-primary me-1"></i>
+                                        <b>@docente.Utente.Profilo.Cognome @docente.Utente.Profilo.Nome</b>
+                                    </span>
+                                </label>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-secondary glass-btn" @onclick="GoBack">
+                        <i class="fas fa-arrow-left"></i> Annulla
+                    </button>
+                    <button type="submit" class="btn btn-primary glass-btn">
+                        <i class="fas fa-save"></i> Salva
+                    </button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+
+    private CollegioDocenti CollegioDocente { get; set; } = new CollegioDocenti();
+    private List<Docente> DocentiDisponibili { get; set; } = new();
+    private List<int> DocentiSelezionati { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        DocentiDisponibili = await DbContext.Docenti
+            .Include(d => d.Utente)
+                .ThenInclude(u => u.Profilo)
+            .OrderBy(d => d.Utente.Profilo.Cognome)
+            .ThenBy(d => d.Utente.Profilo.Nome)
+            .ToListAsync();
+    }
+
+    private void OnDocenteCheckedChanged(ChangeEventArgs e, int docenteId)
+    {
+        var isChecked = (bool?)e.Value == true;
+        if (isChecked)
+        {
+            if (!DocentiSelezionati.Contains(docenteId))
+                DocentiSelezionati.Add(docenteId);
+        }
+        else
+        {
+            DocentiSelezionati.Remove(docenteId);
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        CollegioDocente.Docenti = await DbContext.Docenti
+            .Where(d => DocentiSelezionati.Contains(d.UtenteId))
+            .ToListAsync();
+
+        DbContext.CollegiDocenti.Add(CollegioDocente);
+        await DbContext.SaveChangesAsync();
+        NavigationManager.NavigateTo("/gestione");
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/gestione");
+    }
+}

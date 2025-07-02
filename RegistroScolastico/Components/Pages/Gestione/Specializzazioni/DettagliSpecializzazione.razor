@@ -1,0 +1,140 @@
+﻿@page "/specializzazioni/dettagli/{Id:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Dettaglio Specializzazione</PageTitle>
+
+<div class="dettagli-specializzazione-mainbox animate-fadein">
+    <div class="dettagli-specializzazione-header">
+        <h2>
+            <i class="fas fa-graduation-cap me-2"></i>
+            Dettaglio Specializzazione
+        </h2>
+        <div class="dettagli-specializzazione-actions">
+            <button class="btn btn-secondary glass-btn" @onclick="GoBack">
+                <i class="fas fa-arrow-left me-1"></i> Torna indietro
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="dettagli-specializzazione-loader">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+            <span class="ms-2">Caricamento dettagli...</span>
+        </div>
+    }
+    else if (Specializzazione == null)
+    {
+        <div class="alert alert-danger glass-card mt-4">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Specializzazione non trovata.
+        </div>
+    }
+    else
+    {
+        <div class="glass-card dettagli-specializzazione-card mb-4 p-4">
+            <div class="d-flex align-items-center mb-3 gap-3 flex-wrap">
+                <span class="badge badge-specializzazione" style="font-size:1.3rem;">
+                    <i class="fas fa-graduation-cap me-2"></i> @Specializzazione.Nome
+                </span>
+                <span class="badge badge-annoformativo">ID: @Specializzazione.Id</span>
+            </div>
+        </div>
+
+        <div class="glass-card dettagli-specializzazione-card p-4">
+            <div class="d-flex align-items-center mb-3">
+                <span class="gestione-section-header" style="background:transparent;padding:0;font-size:1.15rem;">
+                    <i class="fas fa-layer-group me-2"></i> Classi collegate
+                </span>
+            </div>
+            @if (ClassiCollegate.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table elenco-classi-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th><i class="fas fa-calendar-alt me-1"></i> Anno</th>
+                                <th><i class="fas fa-th-large me-1"></i> Sezione</th>
+                                <th><i class="fas fa-calendar me-1"></i> Anno Formativo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var classe in ClassiCollegate)
+                            {
+                                <tr>
+                                    <td>@classe.Id</td>
+                                    <td>
+                                        <span class="badge badge-anno">
+                                            <i class="fas fa-calendar-alt me-1"></i> @classe.Anno?.Nome
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-sezione">
+                                            <i class="fas fa-th-large me-1"></i> @classe.Sezione?.Nome
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-annoformativo">
+                                            <i class="fas fa-calendar me-1"></i> @classe.AnnoFormativo?.Nome
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-muted p-3">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Nessuna classe collegata a questa specializzazione.
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Corso? Specializzazione { get; set; }
+    private List<Classe> ClassiCollegate { get; set; } = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        Specializzazione = await DbContext.Corsi
+            .FirstOrDefaultAsync(c => c.Id == Id);
+
+        if (Specializzazione != null)
+        {
+            ClassiCollegate = await DbContext.Classi
+                .Include(c => c.Anno)
+                .Include(c => c.Sezione)
+                .Include(c => c.AnnoFormativo)
+                .Where(c => c.CorsoId == Id)
+                .OrderBy(c => c.AnnoFormativo.Nome)
+                .ThenBy(c => c.Anno.Nome)
+                .ThenBy(c => c.Sezione.Nome)
+                .ToListAsync();
+        }
+        isLoading = false;
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/gestione");
+    }
+}

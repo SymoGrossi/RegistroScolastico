@@ -1,0 +1,135 @@
+﻿@page "/collegidocente/dettagli/{Id:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Dettaglio Collegio Docenti</PageTitle>
+
+<div class="dettagli-collegio-mainbox animate-fadein">
+    <div class="dettagli-collegio-container">
+        <div class="dettagli-collegio-header">
+            <h2>
+                <i class="fas fa-users-gear me-2"></i>
+                Dettaglio Collegio Docenti
+            </h2>
+            <button class="btn btn-secondary dettagli-collegio-back-btn" @onclick="GoBack" title="Torna alla gestione">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+
+        @if (CollegioDocente == null)
+        {
+            <div class="dettagli-collegio-loader">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Caricamento...</span>
+                </div>
+                <span class="ms-2">Caricamento collegio docenti...</span>
+            </div>
+        }
+        else
+        {
+            <div class="glass-card dettagli-collegio-info-card animate-fadein">
+                <div class="card-body">
+                    <h3 class="card-title text-primary mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Info Collegio Docenti
+                    </h3>
+                    <div class="row mb-2">
+                        <div class="col-12 col-md-6 mb-2 mb-md-0">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-hashtag me-1"></i>ID: @CollegioDocente.Id
+                            </span>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-calendar-day me-1"></i>Creato il: @CollegioDocente.DataCreazione.ToShortDateString()
+                            </span>
+                        </div>
+                    </div>
+                    <hr class="collegio-info-divider mt-4 mb-2" />
+                    <div class="text-center mb-2">
+                        <span class="badge badge-collegio">
+                            <i class="fas fa-users-gear me-1"></i>@CollegioDocente.Nome
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card dettagli-collegio-docenti-card animate-fadein">
+                <div class="card-body">
+                    <h4 class="mb-3 text-center">
+                        <i class="fas fa-chalkboard-teacher me-2"></i>
+                        Docenti Associati
+                        <span class="badge badge-docenti ms-2">@DocentiAssociati.Count</span>
+                    </h4>
+                    <div class="dettagli-collegio-table-wrap">
+                        <table class="table table-hover elenco-docenti-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-dark">ID</th>
+                                    <th class="text-dark">Cognome</th>
+                                    <th class="text-dark">Nome</th>
+                                    <th class="text-dark">Email</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (DocentiAssociati.Any())
+                                {
+                                    @foreach (var docente in DocentiAssociati)
+                                    {
+                                        <tr>
+                                            <td class="text-dark">@docente.Id</td>
+                                            <td>@(docente.Profilo?.Cognome ?? "N/A")</td>
+                                            <td>@(docente.Profilo?.Nome ?? "N/A")</td>
+                                            <td>@(docente.Email ?? "N/A")</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">Nessun docente associato.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private CollegioDocenti? CollegioDocente { get; set; }
+    private List<Utente> DocentiAssociati { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        CollegioDocente = await DbContext.CollegiDocenti
+            .Include(cd => cd.Docenti)
+                .ThenInclude(d => d.Utente)
+                    .ThenInclude(u => u.Profilo)
+            .FirstOrDefaultAsync(cd => cd.Id == Id);
+
+        if (CollegioDocente?.Docenti != null)
+        {
+            DocentiAssociati = CollegioDocente.Docenti
+                .Where(d => d.Utente != null)
+                .Select(d => d.Utente)
+                .ToList();
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/gestione");
+    }
+}

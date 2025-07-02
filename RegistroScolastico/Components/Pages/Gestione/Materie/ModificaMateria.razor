@@ -1,0 +1,336 @@
+﻿@page "/materie/modifica/{MateriaId:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Modifica Materia</PageTitle>
+
+<div class="modifica-materia-mainbox animate-fadein">
+    <div class="modifica-materia-header">
+        <h2>
+            <i class="fas fa-book-open me-2"></i>
+            Modifica Materia
+        </h2>
+        <button class="btn btn-secondary glass-btn modifica-materia-back-btn" @onclick="GoBack">
+            <i class="fas fa-arrow-left me-1"></i> Torna indietro
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="modifica-materia-loader">
+            <div class="spinner-border text-primary" role="status"></div>
+            <span class="ms-2">Caricamento dati...</span>
+        </div>
+    }
+    else if (materia == null)
+    {
+        <div class="alert alert-danger glass-card mt-4 animate-fadein">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Materia non trovata.
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") glass-card animate-fadein mt-3">
+                @statusMessage
+            </div>
+        }
+
+        <div class="glass-card modifica-materia-card p-4">
+            <EditForm Model="@materia" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-4">
+                    <label for="nomeMateria" class="form-label fw-semibold text-primary">
+                        <i class="fas fa-pen me-1"></i> Nome Materia
+                    </label>
+                    <InputText id="nomeMateria" class="form-control glass-input" @bind-Value="materia.Nome" maxlength="100" autocomplete="off" />
+                    <ValidationMessage For="@(() => materia.Nome)" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold text-primary">
+                        <i class="fas fa-layer-group me-1"></i> Moduli associati
+                    </label>
+                    <div class="input-group mb-2" style="max-width: 400px;">
+                        <InputText placeholder="Nome nuovo modulo" class="form-control glass-input" @bind-Value="nuovoModuloNome" maxlength="100" />
+                        <button type="button" class="btn btn-success glass-btn" @onclick="AggiungiModulo" title="Aggiungi Modulo">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <div class="docenti-list-glass" style="min-height: 48px;">
+                        @if (moduli.Count == 0)
+                        {
+                            <span class="text-muted">Nessun modulo aggiunto.</span>
+                        }
+                        else
+                        {
+                            <ul class="list-unstyled mb-0">
+                                @foreach (var modulo in moduli)
+                                {
+                                    <li class="d-flex align-items-center mb-2 glass-list-item" style="gap: 0.5rem;">
+                                        @if (modulo.Id == moduloInModificaId)
+                                        {
+                                            <InputText class="form-control glass-input me-2" style="max-width: 200px;" @bind-Value="moduloInModificaNome" maxlength="100" />
+                                            <button type="button" class="btn btn-primary btn-sm glass-btn me-1" @onclick="() => SalvaModificaModulo(modulo)" title="Salva">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-secondary btn-sm glass-btn" @onclick="AnnullaModificaModulo" title="Annulla">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="fw-semibold text-primary"><i class="fas fa-cube me-1"></i>@modulo.Nome</span>
+                                            <button type="button" class="btn btn-warning btn-sm glass-btn me-1" @onclick="() => IniziaModificaModulo(modulo)" title="Modifica">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-danger btn-sm glass-btn" @onclick="() => EliminaModulo(modulo)" title="Elimina">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold text-primary">
+                        <i class="fas fa-chalkboard-teacher me-1"></i> Docenti che insegnano questa materia
+                    </label>
+                    <div class="docenti-list-glass">
+                        @if (docenti.Count == 0)
+                        {
+                            <div class="text-muted text-center py-2">Nessun docente disponibile.</div>
+                        }
+                        else
+                        {
+                            <div class="row">
+                                @foreach (var docente in docenti)
+                                {
+                                    <div class="col-md-6 col-lg-4 mb-2">
+                                        <label class="docente-checkbox glass-list-item d-flex align-items-center">
+                                            <input class="form-check-input me-2"
+                                                   type="checkbox"
+                                                   id="docente_@docente.UtenteId"
+                                                   @bind="docenteSelections[docente.UtenteId]" />
+                                            <span>
+                                                <i class="fas fa-user-tie text-primary me-1"></i>
+                                                <b>@docente.Utente?.Profilo?.Cognome @docente.Utente?.Profilo?.Nome</b>
+                                            </span>
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-secondary glass-btn" @onclick="GoBack">
+                        <i class="fas fa-arrow-left"></i> Annulla
+                    </button>
+                    <button type="submit" class="btn btn-primary glass-btn">
+                        <i class="fas fa-save"></i> Salva Modifiche
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    }
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter]
+    public int MateriaId { get; set; }
+
+    private Materia? materia;
+    private List<Modulo> moduli = new();
+    private List<Docente> docenti = new();
+    private Dictionary<int, bool> docenteSelections = new();
+    private string nuovoModuloNome = string.Empty;
+    private int? moduloInModificaId = null;
+    private string moduloInModificaNome = string.Empty;
+    private string statusMessage = string.Empty;
+    private bool isError = false;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        materia = await DbContext.Materie
+            .Include(m => m.Moduli)
+            .FirstOrDefaultAsync(m => m.Id == MateriaId);
+
+        if (materia == null)
+        {
+            isLoading = false;
+            return;
+        }
+
+        // Carica moduli associati
+        moduli = await DbContext.ModuliMaterie
+            .Where(mm => mm.MateriaId == MateriaId)
+            .Include(mm => mm.Modulo)
+            .Select(mm => mm.Modulo)
+            .AsNoTracking()
+            .ToListAsync();
+
+        // Carica tutti i docenti
+        docenti = await DbContext.Docenti
+            .Include(d => d.Utente)
+                .ThenInclude(u => u.Profilo)
+            .OrderBy(d => d.Utente.Profilo.Cognome)
+            .ThenBy(d => d.Utente.Profilo.Nome)
+            .ToListAsync();
+
+        // Carica docenti associati a questa materia
+        var docentiAssociati = await DbContext.MaterieClassi
+            .Where(mc => mc.MateriaId == MateriaId)
+            .Select(mc => mc.DocenteId)
+            .Distinct()
+            .ToListAsync();
+
+        foreach (var docente in docenti)
+        {
+            docenteSelections[docente.UtenteId] = docentiAssociati.Contains(docente.UtenteId);
+        }
+
+        isLoading = false;
+    }
+
+    private void AggiungiModulo()
+    {
+        var nome = nuovoModuloNome?.Trim();
+        if (!string.IsNullOrWhiteSpace(nome) && !moduli.Any(m => m.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase)))
+        {
+            moduli.Add(new Modulo { Nome = nome });
+            nuovoModuloNome = string.Empty;
+        }
+    }
+
+    private void IniziaModificaModulo(Modulo modulo)
+    {
+        moduloInModificaId = modulo.Id;
+        moduloInModificaNome = modulo.Nome;
+    }
+
+    private void AnnullaModificaModulo()
+    {
+        moduloInModificaId = null;
+        moduloInModificaNome = string.Empty;
+    }
+
+    private void SalvaModificaModulo(Modulo modulo)
+    {
+        var nome = moduloInModificaNome?.Trim();
+        if (!string.IsNullOrWhiteSpace(nome) && !moduli.Any(m => m.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase) && m != modulo))
+        {
+            modulo.Nome = nome;
+            moduloInModificaId = null;
+            moduloInModificaNome = string.Empty;
+        }
+    }
+
+    private void EliminaModulo(Modulo modulo)
+    {
+        moduli.Remove(modulo);
+        if (moduloInModificaId == modulo.Id)
+            AnnullaModificaModulo();
+    }
+
+    private async Task HandleSubmit()
+    {
+        statusMessage = string.Empty;
+        isError = false;
+
+        try
+        {
+            materia!.DataModifica = DateTime.Now;
+            DbContext.Materie.Update(materia);
+            await DbContext.SaveChangesAsync();
+
+            // Gestione moduli: elimina tutti i ModuloMateria esistenti e ricrea
+            var moduliMateriaEsistenti = await DbContext.ModuliMaterie
+                .Where(mm => mm.MateriaId == materia.Id)
+                .ToListAsync();
+            DbContext.ModuliMaterie.RemoveRange(moduliMateriaEsistenti);
+            await DbContext.SaveChangesAsync();
+
+            foreach (var modulo in moduli)
+            {
+                Modulo moduloDb = modulo;
+                if (modulo.Id == 0)
+                {
+                    modulo.DataCreazione = DateTime.Now;
+                    DbContext.Moduli.Add(modulo);
+                    await DbContext.SaveChangesAsync();
+                    moduloDb = modulo;
+                }
+                else
+                {
+                    var existing = await DbContext.Moduli.FindAsync(modulo.Id);
+                    if (existing != null && existing.Nome != modulo.Nome)
+                    {
+                        existing.Nome = modulo.Nome;
+                        DbContext.Moduli.Update(existing);
+                        await DbContext.SaveChangesAsync();
+                    }
+                    moduloDb = existing!;
+                }
+
+                DbContext.ModuliMaterie.Add(new ModuloMateria
+                    {
+                        MateriaId = materia.Id,
+                        ModuloId = moduloDb.Id
+                    });
+            }
+            await DbContext.SaveChangesAsync();
+
+            // Gestione docenti: elimina tutti i MateriaClasse esistenti e ricrea
+            var materieClassiEsistenti = await DbContext.MaterieClassi
+                .Where(mc => mc.MateriaId == materia.Id)
+                .ToListAsync();
+            DbContext.MaterieClassi.RemoveRange(materieClassiEsistenti);
+            await DbContext.SaveChangesAsync();
+
+            var docentiAssociati = docenteSelections
+                .Where(kv => kv.Value)
+                .Select(kv => new MateriaClasse
+                    {
+                        MateriaId = materia.Id,
+                        DocenteId = kv.Key,
+                        Peso = 1
+                    }).ToList();
+
+            if (docentiAssociati.Any())
+            {
+                DbContext.MaterieClassi.AddRange(docentiAssociati);
+                await DbContext.SaveChangesAsync();
+            }
+
+            statusMessage = "Modifiche salvate con successo!";
+            NavigationManager.NavigateTo("/gestione", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Errore durante il salvataggio: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/gestione");
+    }
+}

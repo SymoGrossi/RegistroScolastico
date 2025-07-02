@@ -1,0 +1,225 @@
+﻿@page "/studenti/crea"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Aggiungi Studente</PageTitle>
+
+<div class="aggiungi-studente-mainbox animate-fadein">
+    <div class="aggiungi-studente-header">
+        <h2>
+            <i class="fas fa-user-graduate me-2"></i>
+            Aggiungi Studente
+        </h2>
+        <button class="btn btn-secondary glass-btn" @onclick="GoBack" title="Torna alla gestione">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ErroreGenerale))
+    {
+        <div class="alert alert-danger glass-card animate-fadein">@ErroreGenerale</div>
+    }
+
+    <EditForm Model="@StudenteModel" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="glass-card p-4 mt-3">
+            <h5 class="mb-3 text-primary"><i class="fas fa-id-card me-2"></i> Dati Utente</h5>
+            <div class="row">
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Username</label>
+                    <InputText class="form-control glass-input" @bind-Value="StudenteModel.Utente.Username" />
+                    <ValidationMessage For="@(() => StudenteModel.Utente.Username)" />
+                    @if (ErroriCampo.ContainsKey("Username"))
+                    {
+                        <div class="text-danger">@ErroriCampo["Username"]</div>
+                    }
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Email</label>
+                    <InputText class="form-control glass-input" @bind-Value="StudenteModel.Utente.Email" />
+                    <ValidationMessage For="@(() => StudenteModel.Utente.Email)" />
+                    @if (ErroriCampo.ContainsKey("Email"))
+                    {
+                        <div class="text-danger">@ErroriCampo["Email"]</div>
+                    }
+                </div>
+            </div>
+            <div class="row">
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Password</label>
+                    <InputText class="form-control glass-input" @bind-Value="Password" type="password" />
+                    <ValidationMessage For="@(() => Password)" />
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Ruolo</label>
+                    <InputSelect class="form-select glass-input" @bind-Value="StudenteModel.Utente.Ruolo">
+                        <option value="@RuoloUtente.Studente">Studente</option>
+                    </InputSelect>
+                </div>
+            </div>
+
+            <h5 class="mb-3 mt-4 text-primary"><i class="fas fa-user me-2"></i> Profilo</h5>
+            <div class="row">
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Nome</label>
+                    <InputText class="form-control glass-input" @bind-Value="StudenteModel.Utente.Profilo.Nome" />
+                    <ValidationMessage For="@(() => StudenteModel.Utente.Profilo.Nome)" />
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Cognome</label>
+                    <InputText class="form-control glass-input" @bind-Value="StudenteModel.Utente.Profilo.Cognome" />
+                    <ValidationMessage For="@(() => StudenteModel.Utente.Profilo.Cognome)" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Codice Fiscale</label>
+                    <InputText class="form-control glass-input" @bind-Value="StudenteModel.Utente.Profilo.CodiceFiscale" />
+                    <ValidationMessage For="@(() => StudenteModel.Utente.Profilo.CodiceFiscale)" />
+                    @if (ErroriCampo.ContainsKey("CodiceFiscale"))
+                    {
+                        <div class="text-danger">@ErroriCampo["CodiceFiscale"]</div>
+                    }
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Data di Nascita</label>
+                    <InputDate class="form-control glass-input" @bind-Value="StudenteModel.Utente.Profilo.DataNascita" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Indirizzo</label>
+                    <InputText class="form-control glass-input" @bind-Value="StudenteModel.Utente.Profilo.Indirizzo" />
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label class="form-label fw-semibold text-primary">Telefono</label>
+                    <InputText class="form-control glass-input" @bind-Value="StudenteModel.Utente.Profilo.Telefono" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold text-primary">Info Aggiuntive</label>
+                <InputTextArea class="form-control glass-input" @bind-Value="StudenteModel.Utente.Profilo.InfoAggiuntive" />
+            </div>
+
+            <h5 class="mb-3 mt-4 text-primary"><i class="fas fa-layer-group me-2"></i> Classe</h5>
+            <div class="mb-3">
+                <label class="form-label fw-semibold text-primary">Classe</label>
+                <InputSelect class="form-select glass-input" @bind-Value="StudenteModel.ClasseId">
+                    <option value="">Seleziona una classe</option>
+                    @foreach (var classe in Classi)
+                    {
+                        <option value="@classe.Id">
+                            @($"{classe.Anno?.Nome} {classe.Sezione?.Nome} {classe.Corso?.Nome}")
+                        </option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => StudenteModel.ClasseId)" />
+                @if (ErroriCampo.ContainsKey("ClasseId"))
+                {
+                    <div class="text-danger">@ErroriCampo["ClasseId"]</div>
+                }
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <button type="button" class="btn btn-secondary glass-btn" @onclick="GoBack">
+                    <i class="fas fa-arrow-left"></i> Annulla
+                </button>
+                <button type="submit" class="btn btn-primary glass-btn">
+                    <i class="fas fa-save"></i> Salva
+                </button>
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    private Studente StudenteModel { get; set; } = new Studente();
+    private string Password { get; set; } = string.Empty;
+    private List<Classe> Classi { get; set; } = new();
+    private Dictionary<string, string> ErroriCampo { get; set; } = new();
+    private string? ErroreGenerale { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        StudenteModel = new Studente
+            {
+                Utente = new Utente
+                {
+                    Profilo = new Profilo(),
+                    Username = string.Empty,
+                    Ruolo = RuoloUtente.Studente
+                }
+            };
+
+        Classi = await DbContext.Classi
+            .Include(c => c.Anno)
+            .Include(c => c.Sezione)
+            .Include(c => c.Corso)
+            .OrderBy(c => c.Anno.Nome)
+            .ThenBy(c => c.Sezione.Nome)
+            .ToListAsync();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        ErroriCampo.Clear();
+        ErroreGenerale = null;
+
+        try
+        {
+            StudenteModel.Utente.PasswordHash = Password;
+            StudenteModel.Utente.Ruolo = RuoloUtente.Studente;
+
+            DbContext.Utenti.Add(StudenteModel.Utente);
+            await DbContext.SaveChangesAsync();
+
+            StudenteModel.UtenteId = StudenteModel.Utente.Id;
+
+            DbContext.Studenti.Add(StudenteModel);
+            await DbContext.SaveChangesAsync();
+
+            NavigationManager.NavigateTo("/studenti");
+        }
+        catch (DbUpdateException ex)
+        {
+            var msg = ex.InnerException?.Message ?? ex.Message;
+
+            if (msg.Contains("IX_Profili_CodiceFiscale", StringComparison.OrdinalIgnoreCase))
+            {
+                ErroriCampo["CodiceFiscale"] = "Codice fiscale già presente.";
+            }
+            else if (msg.Contains("IX_Utenti_Email", StringComparison.OrdinalIgnoreCase))
+            {
+                ErroriCampo["Email"] = "Email già presente.";
+            }
+            else if (msg.Contains("IX_Utenti_Username", StringComparison.OrdinalIgnoreCase))
+            {
+                ErroriCampo["Username"] = "Username già presente.";
+            }
+            else if (msg.Contains("FK_Studenti_Classi_ClasseId", StringComparison.OrdinalIgnoreCase))
+            {
+                ErroriCampo["ClasseId"] = "Classe selezionata non valida.";
+            }
+            else
+            {
+                ErroreGenerale = "Errore durante il salvataggio: " + ex.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErroreGenerale = "Errore inatteso: " + ex.Message;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/studenti");
+    }
+}

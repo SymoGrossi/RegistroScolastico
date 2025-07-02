@@ -1,0 +1,291 @@
+﻿@page "/valutazioni"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Valutazioni Studenti</PageTitle>
+
+<div class="valutazioni-studenti-mainbox animate-fadein">
+    <div class="valutazioni-studenti-header d-flex justify-content-between align-items-center">
+        <h2>
+            <i class="fas fa-clipboard-list me-2"></i>
+            Elenco Studenti e Valutazioni
+        </h2>
+        <button class="btn-stampa" @onclick="OnStampa">
+            <i class="fas fa-print me-1"></i> Stampa
+        </button>
+    </div>
+
+    <div class="glass-card p-4 mb-4">
+        <div class="row gy-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold text-primary">
+                    <i class="fas fa-search me-1"></i> Cerca studente
+                </label>
+                <input class="form-control glass-input" type="text" placeholder="Cerca per nome o cognome..."
+                       @bind="searchText" @bind:event="oninput" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold text-primary">Anno</label>
+                <select class="form-select glass-input" @bind="selectedAnnoId">
+                    <option value="">Tutti</option>
+                    @foreach (var anno in anniDistinct)
+                    {
+                        <option value="@anno.Id">@anno.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold text-primary">Sezione</label>
+                <select class="form-select glass-input" @bind="selectedSezioneId">
+                    <option value="">Tutte</option>
+                    @foreach (var sezione in sezioniDistinct)
+                    {
+                        <option value="@sezione.Id">@sezione.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold text-primary">Specializzazione</label>
+                <select class="form-select glass-input" @bind="selectedSpecializzazioneId">
+                    <option value="">Tutte</option>
+                    @foreach (var spec in specializzazioniDistinct)
+                    {
+                        <option value="@spec.Id">@spec.Nome</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card p-0">
+        <div class="table-responsive">
+            <table class="table table-hover valutazioni-studenti-table mb-0">
+                <thead>
+                    <tr>
+                        <th class="col-nome">Nome</th>
+                        <th>Cognome</th>
+                        <th>Anno</th>
+                        <th>Sezione</th>
+                        <th>Specializzazione</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (filteredStudenti.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                Nessuno studente trovato.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var studente in filteredStudenti)
+                        {
+                            <tr>
+                                <td class="col-nome">
+                                    <span class="badge badge-nome">@studente.Utente?.Profilo?.Nome</span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-cognome">@studente.Utente?.Profilo?.Cognome</span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-classe">
+                                        @studente.Classe?.Anno?.Nome
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-sezione">
+                                        @studente.Classe?.Sezione?.Nome
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-specializzazione">
+                                        @studente.Classe?.Corso?.Nome
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-primary glass-btn btn-sm"
+                                            @onclick="() => VaiAlleValutazioni(studente.UtenteId)">
+                                        <i class="fas fa-clipboard-list"></i> Valutazioni
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    private List<Studente> studenti = new();
+    private List<Studente> filteredStudenti = new();
+
+    private List<Anno> anniDistinct = new();
+    private List<Sezione> sezioniDistinct = new();
+    private List<Corso> specializzazioniDistinct = new();
+
+    private string searchText = string.Empty;
+    private int? selectedAnnoId;
+    private int? selectedSezioneId;
+    private int? selectedSpecializzazioneId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        studenti = await DbContext.Studenti
+            .Include(s => s.Utente)
+                .ThenInclude(u => u.Profilo)
+            .Include(s => s.Classe)
+                .ThenInclude(c => c.Anno)
+            .Include(s => s.Classe)
+                .ThenInclude(c => c.Sezione)
+            .Include(s => s.Classe)
+                .ThenInclude(c => c.Corso)
+            .AsNoTracking()
+            .ToListAsync();
+
+        anniDistinct = studenti
+            .Where(s => s.Classe?.Anno != null)
+            .Select(s => s.Classe!.Anno!)
+            .DistinctBy(a => a.Id)
+            .OrderBy(a => a.Nome)
+            .ToList();
+
+        sezioniDistinct = studenti
+            .Where(s => s.Classe?.Sezione != null)
+            .Select(s => s.Classe!.Sezione!)
+            .DistinctBy(s => s.Id)
+            .OrderBy(s => s.Nome)
+            .ToList();
+
+        specializzazioniDistinct = studenti
+            .Where(s => s.Classe?.Corso != null)
+            .Select(s => s.Classe!.Corso!)
+            .DistinctBy(c => c.Id)
+            .OrderBy(c => c.Nome)
+            .ToList();
+
+        FiltraStudenti();
+    }
+
+    private void FiltraStudenti()
+    {
+        IEnumerable<Studente> query = studenti;
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var search = searchText.Trim().ToLowerInvariant();
+            query = query.Where(s =>
+                (s.Utente?.Profilo?.Nome?.ToLowerInvariant().Contains(search) ?? false) ||
+                (s.Utente?.Profilo?.Cognome?.ToLowerInvariant().Contains(search) ?? false));
+        }
+
+        if (selectedAnnoId.HasValue)
+            query = query.Where(s => s.Classe?.AnnoId == selectedAnnoId.Value);
+
+        if (selectedSezioneId.HasValue)
+            query = query.Where(s => s.Classe?.SezioneId == selectedSezioneId.Value);
+
+        if (selectedSpecializzazioneId.HasValue)
+            query = query.Where(s => s.Classe?.CorsoId == selectedSpecializzazioneId.Value);
+
+        filteredStudenti = query
+            .OrderBy(s => s.Utente?.Profilo?.Cognome)
+            .ThenBy(s => s.Utente?.Profilo?.Nome)
+            .ToList();
+    }
+
+    private void VaiAlleValutazioni(int studenteId)
+    {
+        NavigationManager.NavigateTo($"/studenti/valutazioni/{studenteId}");
+    }
+
+    private void OnStampa()
+    {
+        // Da implementare
+    }
+
+    // Binding bidirezionale per i filtri
+    private string? SearchText
+    {
+        get => searchText;
+        set
+        {
+            searchText = value ?? string.Empty;
+            FiltraStudenti();
+        }
+    }
+    private int? SelectedAnnoId
+    {
+        get => selectedAnnoId;
+        set
+        {
+            selectedAnnoId = value;
+            FiltraStudenti();
+        }
+    }
+    private int? SelectedSezioneId
+    {
+        get => selectedSezioneId;
+        set
+        {
+            selectedSezioneId = value;
+            FiltraStudenti();
+        }
+    }
+    private int? SelectedSpecializzazioneId
+    {
+        get => selectedSpecializzazioneId;
+        set
+        {
+            selectedSpecializzazioneId = value;
+            FiltraStudenti();
+        }
+    }
+
+    // Proxy per eventuale binding alternativo
+    private string searchTextProxy
+    {
+        get => searchText;
+        set
+        {
+            searchText = value;
+            FiltraStudenti();
+        }
+    }
+    private int? selectedAnnoIdProxy
+    {
+        get => selectedAnnoId;
+        set
+        {
+            selectedAnnoId = value;
+            FiltraStudenti();
+        }
+    }
+    private int? selectedSezioneIdProxy
+    {
+        get => selectedSezioneId;
+        set
+        {
+            selectedSezioneId = value;
+            FiltraStudenti();
+        }
+    }
+    private int? selectedSpecializzazioneIdProxy
+    {
+        get => selectedSpecializzazioneId;
+        set
+        {
+            selectedSpecializzazioneId = value;
+            FiltraStudenti();
+        }
+    }
+}

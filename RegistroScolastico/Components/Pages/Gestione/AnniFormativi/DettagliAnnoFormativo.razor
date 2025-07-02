@@ -1,0 +1,201 @@
+﻿@page "/anniformativi/dettagli/{Id:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Dettaglio Anno Formativo</PageTitle>
+
+<div class="dettagli-anno-mainbox">
+    <div class="dettagli-anno-container">
+        <div class="dettagli-anno-header">
+            <h2>
+                <i class="fas fa-calendar-alt me-2"></i>
+                Dettaglio Anno Formativo
+            </h2>
+            <button class="btn btn-secondary dettagli-anno-back-btn" @onclick="GoBack" title="Torna alla gestione">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+
+        @if (AnnoFormativo == null)
+        {
+            <div class="dettagli-anno-loader">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Caricamento...</span>
+                </div>
+                <span class="ms-2">Caricamento anno formativo...</span>
+            </div>
+        }
+        else
+        {
+            <div class="glass-card dettagli-anno-info-card animate-fadein">
+                <div class="card-body">
+                    <h3 class="card-title text-primary mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Info Anno Formativo
+                    </h3>
+                    <div class="annoformativo-info-badges text-center mb-3">
+                        <div class="row justify-content-center gy-2">
+                            <div class="col-12 col-md-4 d-flex justify-content-center">
+                                <span class="badge badge-info-big">
+                                    <i class="fas fa-hashtag me-1"></i>ID: @AnnoFormativo.Id
+                                </span>
+                            </div>
+                            <div class="col-12 col-md-4 d-flex justify-content-center">
+                                <span class="badge badge-info-big">
+                                    <i class="fas fa-calendar-day me-1"></i>Inizio: @AnnoFormativo.DataInizio.ToShortDateString()
+                                </span>
+                            </div>
+                            <div class="col-12 col-md-4 d-flex justify-content-center">
+                                <span class="badge badge-info-big">
+                                    <i class="fas fa-calendar-check me-1"></i>Fine: @AnnoFormativo.DataFine.ToShortDateString()
+                                </span>
+                            </div>
+                        </div>
+                        <hr class="annoformativo-info-divider mt-4 mb-2" />
+                    </div>
+                    <div class="text-center mb-2">
+                        <span class="badge badge-annoformativo">
+                            <i class="fas fa-calendar-alt me-1"></i>@AnnoFormativo.Nome
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card dettagli-anno-classi-card animate-fadein">
+                <div class="card-body">
+                    <h4 class="mb-3 text-center">
+                        <i class="fas fa-layer-group me-2"></i>
+                        Classi Associate
+                    </h4>
+                    <div class="d-flex justify-content-center">
+                        <div class="dettagli-anno-table-wrap">
+                            <table class="table table-hover elenco-classi-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-dark">ID</th>
+                                        <th class="text-dark">Anno</th>
+                                        <th class="text-dark">Sezione</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (ClassiAssociate.Any())
+                                    {
+                                        @foreach (var classe in ClassiAssociate)
+                                        {
+                                            <tr>
+                                                <td class="text-dark">@classe.Id</td>
+                                                <td>
+                                                    <span class="badge badge-anno badge-info-big">
+                                                        <i class="fas fa-calendar-alt me-1"></i>@classe.Anno?.Nome
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge badge-sezione badge-info-big">
+                                                        <i class="fas fa-th-large me-1"></i>@classe.Sezione?.Nome
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted">Nessuna classe associata.</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <button class="btn btn-danger glass-btn" @onclick="ShowDeleteConfirm">
+                    <i class="fas fa-trash"></i> Elimina
+                </button>
+            </div>
+        }
+
+        @if (showDeleteDialog)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content glass-card">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-trash me-2"></i>Conferma eliminazione
+                            </h5>
+                        </div>
+                        <div class="modal-body">
+                            <p>
+                                Sei sicuro di voler eliminare l'anno formativo <b>@AnnoFormativo?.Nome</b>?<br />
+                                <span class="text-danger small">Verranno eliminate anche tutte le classi associate!</span>
+                            </p>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary glass-btn" @onclick="HideDeleteConfirm">Annulla</button>
+                            <button class="btn btn-danger glass-btn" @onclick="DeleteAnnoFormativo">Elimina</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-backdrop fade show"></div>
+        }
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private AnnoFormativo? AnnoFormativo { get; set; }
+    private List<Classe> ClassiAssociate { get; set; } = new();
+    private bool showDeleteDialog = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AnnoFormativo = await DbContext.AnniFormativi
+            .Include(af => af.Classi)
+            .ThenInclude(c => c.Anno)
+            .Include(af => af.Classi)
+            .ThenInclude(c => c.Sezione)
+            .FirstOrDefaultAsync(af => af.Id == Id);
+
+        if (AnnoFormativo != null)
+        {
+            ClassiAssociate = AnnoFormativo.Classi.ToList();
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/gestione");
+    }
+
+    private void ShowDeleteConfirm()
+    {
+        showDeleteDialog = true;
+    }
+
+    private void HideDeleteConfirm()
+    {
+        showDeleteDialog = false;
+    }
+
+    private async Task DeleteAnnoFormativo()
+    {
+        if (AnnoFormativo != null)
+        {
+            DbContext.Classi.RemoveRange(AnnoFormativo.Classi);
+            DbContext.AnniFormativi.Remove(AnnoFormativo);
+            await DbContext.SaveChangesAsync();
+        }
+        NavigationManager.NavigateTo("/gestione");
+    }
+}

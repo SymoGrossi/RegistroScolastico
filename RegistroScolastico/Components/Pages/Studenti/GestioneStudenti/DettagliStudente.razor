@@ -1,0 +1,175 @@
+﻿@page "/studenti/dettagli/{StudenteId:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Data
+@using RegistroScolastico.Models
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Dettaglio Studente</PageTitle>
+
+<div class="dettagli-studente-mainbox animate-fadein">
+    <div class="dettagli-studente-header">
+        <h2>
+            <i class="fas fa-user-graduate me-2"></i>
+            Dettaglio Studente
+        </h2>
+        <button class="btn btn-secondary dettagli-studente-back-btn" @onclick="GoBack" title="Torna all'elenco">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="dettagli-studente-loader">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+            <span class="ms-2">Caricamento studente...</span>
+        </div>
+    }
+    else if (studente is null)
+    {
+        <div class="alert alert-danger glass-card mt-4">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Studente non trovato.
+        </div>
+    }
+    else
+    {
+        <div class="glass-card dettagli-studente-info-card animate-fadein">
+            <div class="card-body">
+                <h3 class="card-title text-primary mb-3">
+                    <i class="fas fa-id-card me-2"></i>
+                    Info Studente
+                </h3>
+                <div class="row mb-2">
+                    <div class="col-12 col-md-6 mb-2 mb-md-0">
+                        <span class="badge badge-info-big">
+                            <i class="fas fa-user me-1"></i>
+                            @(studente.Utente?.Profilo.Cognome?.ToUpperInvariant() ?? "-") @(studente.Utente?.Profilo.Nome ?? "-")
+                        </span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <span class="badge badge-info-big">
+                            <i class="fas fa-envelope me-1"></i>
+                            @(studente.Utente?.Email ?? "-")
+                        </span>
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-12 col-md-6 mb-2 mb-md-0">
+                        <span class="badge badge-info-big">
+                            <i class="fas fa-id-card me-1"></i>
+                            Codice Fiscale: @(studente.Utente?.Profilo?.CodiceFiscale ?? "-")
+                        </span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <span class="badge badge-info-big">
+                            <i class="fas fa-birthday-cake me-1"></i>
+                            Data di Nascita: @(studente.Utente?.Profilo?.DataNascita != default ? studente.Utente?.Profilo?.DataNascita.ToString("dd/MM/yyyy") : "-")
+                        </span>
+                    </div>
+                </div>
+                <hr class="studente-info-divider mt-4 mb-2" />
+                <div class="row mb-2">
+                    <div class="col-12 col-md-6 mb-2 mb-md-0">
+                        <span class="badge badge-info-big">
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            Residenza: @(studente.Utente?.Profilo?.Indirizzo ?? "-")
+                        </span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <span class="badge badge-info-big">
+                            <i class="fas fa-phone me-1"></i>
+                            Telefono: @(studente.Utente?.Profilo?.Telefono ?? "-")
+                        </span>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <span class="badge badge-info-big">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Info: @(studente.Utente?.Profilo?.InfoAggiuntive ?? "-")
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card dettagli-studente-classe-card animate-fadein">
+            <div class="card-body">
+                <h4 class="mb-3 text-primary">
+                    <i class="fas fa-layer-group me-2"></i>
+                    Classe
+                </h4>
+                @if (studente.Classe is not null)
+                {
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <span class="badge badge-anno">
+                            <i class="fas fa-calendar-alt me-1"></i> @studente.Classe.Anno?.Nome
+                        </span>
+                        <span class="badge badge-sezione">
+                            <i class="fas fa-th-large me-1"></i> @studente.Classe.Sezione?.Nome
+                        </span>
+                        <span class="badge badge-corso">
+                            <i class="fas fa-graduation-cap me-1"></i> @studente.Classe.Corso?.Nome
+                        </span>
+                        <span class="badge badge-annoformativo">
+                            <i class="fas fa-calendar me-1"></i> @studente.Classe.AnnoFormativo?.Nome
+                        </span>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-danger py-2">Classe non assegnata</div>
+                }
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button class="btn btn-secondary glass-btn" @onclick="GoBack">
+                <i class="fas fa-arrow-left"></i> Torna Indietro
+            </button>
+            <button class="btn btn-primary glass-btn" @onclick="VaiAlleValutazioni">
+                <i class="fas fa-star"></i> Valutazioni
+            </button>
+        </div>
+    }
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter]
+    public int StudenteId { get; set; }
+
+    private Studente? studente;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var db = await DbFactory.CreateDbContextAsync();
+        studente = await db.Studenti
+            .Include(s => s.Utente)
+                .ThenInclude(u => u.Profilo)
+            .Include(s => s.Classe)
+                .ThenInclude(c => c.Anno)
+            .Include(s => s.Classe)
+                .ThenInclude(c => c.Sezione)
+            .Include(s => s.Classe)
+                .ThenInclude(c => c.Corso)
+            .Include(s => s.Classe)
+                .ThenInclude(c => c.AnnoFormativo)
+            .FirstOrDefaultAsync(s => s.UtenteId == StudenteId);
+
+        isLoading = false;
+    }
+
+    private void VaiAlleValutazioni()
+    {
+        Navigation.NavigateTo($"/studenti/valutazioni/{StudenteId}");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/studenti");
+    }
+}

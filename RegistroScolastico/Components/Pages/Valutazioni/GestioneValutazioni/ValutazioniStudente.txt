@@ -1,0 +1,727 @@
+﻿@page "/studenti/valutazioni/{StudenteId:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Data
+@using RegistroScolastico.Models
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Valutazioni Studente</PageTitle>
+
+@if (studente is null)
+{
+    <div class="alert alert-danger">Studente non trovato.</div>
+}
+else
+{
+    <h2>
+        <i class="fas fa-user-graduate me-2"></i>
+        @studente.Utente.Profilo.Nome @studente.Utente.Profilo.Cognome
+        <span class="badge bg-secondary ms-2">@studente.Classe?.Anno?.Nome@studente.Classe?.Sezione?.Nome - @studente.Classe?.Corso?.Nome</span>
+    </h2>
+
+    <div class="row gy-4">
+        <!-- PROVA SITUAZIONALE -->
+        <div class="col-12">
+            <h4>
+                <i class="fas fa-cogs me-2"></i> SCHEDA DI VALUTAZIONE - PROVA SITUAZIONALE
+                @if (!isSituazionaleEdit)
+                {
+                    <button class="btn btn-primary btn-sm ms-2" @onclick="() => isSituazionaleEdit = true">Modifica</button>
+                }
+                else
+                {
+                    <button class="btn btn-success btn-sm ms-2" @onclick="SalvaSituazionale">Salva</button>
+                    <button class="btn btn-secondary btn-sm ms-2" @onclick="AnnullaSituazionale">Annulla</button>
+                }
+            </h4>
+            @if (provaSituazionale is null)
+            {
+                <div class="text-muted">Nessuna valutazione inserita.</div>
+                <button class="btn btn-success btn-sm mt-2" @onclick="AggiungiProvaSituazionale">
+                    <i class="fas fa-plus"></i> Nuova Prova Situazionale
+                </button>
+            }
+            else
+            {
+                <table class="table table-bordered table-sm align-middle valutazioni-studente-table">
+                    <thead>
+                        <tr>
+                            <th>Compito</th>
+                            <th>Incidenza %</th>
+                            <th>Punteggio Max</th>
+                            <th>Punteggio Ottenuto</th>
+                            <th>Criteri</th>
+                            @if (isSituazionaleEdit)
+                            {
+                                <th></th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int c = 0; c < provaSituazionale.Compiti.Count; c++)
+                        {
+                            var compito = provaSituazionale.Compiti.ElementAt(c);
+                            var maxCompito = compito.Indicatori.Sum(i => i.PunteggioMax);
+                            <tr>
+                                <td>
+                                    @if (isSituazionaleEdit)
+                                    {
+                                        <textarea class="form-control form-control-sm" style="min-height:2.5em;" @bind="compito.Nome"></textarea>
+                                    }
+                                    else
+                                    {
+                                        <div style="white-space:pre-wrap;word-break:break-word;">@compito.Nome</div>
+                                    }
+                                </td>
+                                <td>
+                                    @if (isSituazionaleEdit)
+                                    {
+                                        <input type="number" class="form-control form-control-sm"
+                                               min="0" max="100"
+                                               value="@GetPesoPercentuale(compito)"
+                                               @oninput="e => SetPesoPercentuale(compito, string.IsNullOrWhiteSpace(e.Value?.ToString()) ? 0 : Convert.ToDouble(e.Value))" />
+                                        <span class="ms-1">%</span>
+                                    }
+                                    else
+                                    {
+                                        @((compito.Peso * 100).ToString("0.#"))
+
+                                        <span>%</span>
+                                    }
+                                </td>
+                                <td>
+                                    @maxCompito
+                                    @if (maxCompito != 0 && Math.Abs(maxCompito - compito.Indicatori.Sum(i => i.PunteggioMax)) > 0.01)
+                                    {
+                                        <span class="text-danger ms-1" title="La somma dei criteri non corrisponde al punteggio massimo!">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </span>
+                                    }
+                                </td>
+                                <td>@CalcolaPunteggioCompito(compito)</td>
+                                <td>
+                                    <table class="table table-borderless table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Nome</th>
+                                                <th>Punteggio Max</th>
+                                                <th>Livello</th>
+                                                <th>Punteggio Ottenuto</th>
+                                                @if (isSituazionaleEdit)
+                                                {
+                                                    <th></th>
+                                                }
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (int k = 0; k < compito.Indicatori.Count; k++)
+                                            {
+                                                var criterio = compito.Indicatori.ElementAt(k);
+                                                <tr>
+                                                    <td>
+                                                        @if (isSituazionaleEdit)
+                                                        {
+                                                            <textarea class="form-control form-control-sm" style="min-height:2.5em;" @bind="criterio.Nome"></textarea>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div style="white-space:pre-wrap;word-break:break-word;">@criterio.Nome</div>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (isSituazionaleEdit)
+                                                        {
+                                                            <input type="number" class="form-control form-control-sm" min="1" max="1000"
+                                                                   @bind="criterio.PunteggioMax" />
+                                                        }
+                                                        else
+                                                        {
+                                                            @criterio.PunteggioMax
+                                                            <span>/@maxCompito</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (isSituazionaleEdit)
+                                                        {
+                                                            <select class="form-select form-select-sm"
+                                                                    @bind="criterio.Livello">
+                                                                @foreach (var livello in Enum.GetValues(typeof(LivelloTecnico)))
+                                                                {
+                                                                    <option value="@livello">@livello</option>
+                                                                }
+                                                            </select>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-info">@criterio.Livello</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @CalcolaPunteggioCriterio(criterio)
+                                                    </td>
+                                                    @if (isSituazionaleEdit)
+                                                    {
+                                                        <td>
+                                                            <button class="btn btn-danger btn-sm" title="Rimuovi criterio"
+                                                                    @onclick="() => RimuoviCriterio(compito, criterio)">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </td>
+                                                    }
+                                                </tr>
+                                            }
+                                            @if (isSituazionaleEdit)
+                                            {
+                                                <tr>
+                                                    <td colspan="5">
+                                                        <button class="btn btn-outline-success btn-sm"
+                                                                @onclick="() => AggiungiCriterio(compito)">
+                                                            <i class="fas fa-plus"></i> Aggiungi criterio
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </td>
+                                @if (isSituazionaleEdit)
+                                {
+                                    <td>
+                                        <button class="btn btn-danger btn-sm" title="Rimuovi compito"
+                                                @onclick="() => RimuoviCompito(compito)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                @if (isSituazionaleEdit)
+                {
+                    <button class="btn btn-outline-primary btn-sm mt-2" @onclick="AggiungiCompito">
+                        <i class="fas fa-plus"></i> Aggiungi compito
+                    </button>
+                }
+                <div class="fw-bold mt-2">
+                    Totale prova situazionale: <span class="badge bg-success">@CalcolaTotaleSituazionale()</span>
+                </div>
+            }
+        </div>
+
+        <!-- PROVA MULTIDISCIPLINARE -->
+        <div class="col-12">
+            <h4>
+                <i class="fas fa-book-open me-2"></i> SCHEDA DI VALUTAZIONE - PROVA MULTIDISCIPLINARE
+                @if (!isMultidisciplinareEdit)
+                {
+                    <button class="btn btn-primary btn-sm ms-2" @onclick="() => isMultidisciplinareEdit = true">Modifica</button>
+                }
+                else
+                {
+                    <button class="btn btn-success btn-sm ms-2" @onclick="SalvaMultidisciplinare">Salva</button>
+                    <button class="btn btn-secondary btn-sm ms-2" @onclick="AnnullaMultidisciplinare">Annulla</button>
+                }
+            </h4>
+            @if (provaMultidisciplinare is null)
+            {
+                <div class="text-muted">Nessuna valutazione inserita.</div>
+                <button class="btn btn-success btn-sm mt-2" @onclick="AggiungiProvaMultidisciplinare">
+                    <i class="fas fa-plus"></i> Nuova Prova Multidisciplinare
+                </button>
+            }
+            else
+            {
+                <table class="table table-bordered table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Sezione</th>
+                            <th>Competenza</th>
+                            <th>Domande</th>
+                            <th>Punti/Domanda</th>
+                            <th>Peso</th>
+                            <th>Punteggio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sezione in provaMultidisciplinare.Sezioni)
+                        {
+                            <tr>
+                                <td>@sezione.Nome</td>
+                                <td>@sezione.Competenza</td>
+                                <td>@sezione.NumDomande</td>
+                                <td>@sezione.PuntiPerDomanda</td>
+                                <td>@(sezione.Peso * 100)%</td>
+                                <td>
+                                    @if (isMultidisciplinareEdit)
+                                    {
+                                        <input type="number" class="form-control form-control-sm"
+                                               min="0" max="@(sezione.NumDomande * sezione.PuntiPerDomanda)"
+                                               @bind="sezione.Punteggio" />
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary">@sezione.Punteggio</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <div class="fw-bold">
+                    Totale prova multidisciplinare: <span class="badge bg-success">@CalcolaTotaleMultidisciplinare()</span>
+                </div>
+            }
+        </div>
+
+        <!-- COLLOQUIO -->
+        <div class="col-12">
+            <h4>
+                <i class="fas fa-comments me-2"></i> SCHEDA DI VALUTAZIONE RIASSUNTIVA - COLLOQUIO
+                @if (!isColloquioEdit)
+                {
+                    <button class="btn btn-primary btn-sm ms-2" @onclick="() => isColloquioEdit = true">Modifica</button>
+                }
+                else
+                {
+                    <button class="btn btn-success btn-sm ms-2" @onclick="SalvaColloquio">Salva</button>
+                    <button class="btn btn-secondary btn-sm ms-2" @onclick="AnnullaColloquio">Annulla</button>
+                }
+            </h4>
+            @if (colloquio is null)
+            {
+                <div class="text-muted">Nessuna valutazione inserita.</div>
+                <button class="btn btn-success btn-sm mt-2" @onclick="AggiungiColloquio">
+                    <i class="fas fa-plus"></i> Nuovo Colloquio
+                </button>
+            }
+            else
+            {
+                <table class="table table-bordered table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Ambito</th>
+                            <th>Competenza</th>
+                            <th>Peso</th>
+                            <th>Criteri</th>
+                            <th>Punteggio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var ambito in colloquio.Ambiti)
+                        {
+                            <tr>
+                                <td>@ambito.Nome</td>
+                                <td>@ambito.Competenza</td>
+                                <td>@(ambito.Peso * 100)%</td>
+                                <td>
+                                    <table class="table table-borderless table-sm mb-0">
+                                        <tbody>
+                                            @foreach (var criterio in ambito.Criteri)
+                                            {
+                                                <tr>
+                                                    <td>@criterio.Descrizione</td>
+                                                    <td>Peso: @criterio.PesoRelativo</td>
+                                                    <td>
+                                                        @if (isColloquioEdit)
+                                                        {
+                                                            <input type="number" class="form-control form-control-sm"
+                                                                   min="0" max="10"
+                                                                   @bind="criterio.Voto" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-info">@criterio.Voto</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </td>
+                                <td>@CalcolaPunteggioAmbito(ambito)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <div class="fw-bold">
+                    Totale colloquio: <span class="badge bg-success">@CalcolaTotaleColloquio()</span>
+                </div>
+            }
+        </div>
+
+        <!-- VALUTAZIONE FINALE -->
+        <div class="col-12">
+            <h4>
+                <i class="fas fa-award me-2"></i> SCHEDA DI VALUTAZIONE RIASSUNTIVA - PROVA FINALE
+                @if (!isFinaleEdit)
+                {
+                    <button class="btn btn-primary btn-sm ms-2" @onclick="() => isFinaleEdit = true">Modifica</button>
+                }
+                else
+                {
+                    <button class="btn btn-success btn-sm ms-2" @onclick="SalvaFinale">Salva</button>
+                    <button class="btn btn-secondary btn-sm ms-2" @onclick="AnnullaFinale">Annulla</button>
+                }
+            </h4>
+            @if (valutazioneFinale is null)
+            {
+                <div class="text-muted">Nessuna valutazione finale inserita.</div>
+                <button class="btn btn-success btn-sm mt-2" @onclick="AggiungiValutazioneFinale">
+                    <i class="fas fa-plus"></i> Nuova Valutazione Finale
+                </button>
+            }
+            else
+            {
+                <table class="table table-bordered table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Voto Ammissione</th>
+                            <th>Prova Situazionale</th>
+                            <th>Prova Multidisciplinare</th>
+                            <th>Colloquio</th>
+                            <th>Voto Finale</th>
+                            <th>Data Calcolo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                @if (isFinaleEdit)
+                                {
+                                    <input type="number" class="form-control form-control-sm"
+                                           min="0" max="100"
+                                           @bind="valutazioneFinale.VotoAmmissione" />
+                                }
+                                else
+                                {
+                                    @valutazioneFinale.VotoAmmissione
+                                }
+                            </td>
+                            <td>@CalcolaTotaleSituazionale()</td>
+                            <td>@CalcolaTotaleMultidisciplinare()</td>
+                            <td>@CalcolaTotaleColloquio()</td>
+                            <td>
+                                <span class="badge bg-primary">@valutazioneFinale.VotoFinale</span>
+                            </td>
+                            <td>@valutazioneFinale.DataCalcolo.ToString("dd/MM/yyyy")</td>
+                        </tr>
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int StudenteId { get; set; }
+
+    private Studente? studente;
+    private ProvaSituazionale? provaSituazionale;
+    private ProvaMultidisciplinare? provaMultidisciplinare;
+    private Colloquio? colloquio;
+    private ValutazioneFinale? valutazioneFinale;
+
+    private bool isSituazionaleEdit = false;
+    private bool isMultidisciplinareEdit = false;
+    private bool isColloquioEdit = false;
+    private bool isFinaleEdit = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadData();
+    }
+
+    private async Task ReloadData()
+    {
+        studente = await DbContext.Studenti
+            .Include(s => s.Utente).ThenInclude(u => u.Profilo)
+            .Include(s => s.Classe).ThenInclude(c => c.Anno)
+            .Include(s => s.Classe).ThenInclude(c => c.Sezione)
+            .Include(s => s.Classe).ThenInclude(c => c.Corso)
+            .FirstOrDefaultAsync(s => s.UtenteId == StudenteId);
+
+        provaSituazionale = await DbContext.ProveSituazionali
+            .Include(p => p.Compiti).ThenInclude(c => c.Indicatori)
+            .FirstOrDefaultAsync(p => p.StudenteId == StudenteId);
+
+        provaMultidisciplinare = await DbContext.ProveMultidisciplinari
+            .Include(p => p.Sezioni)
+            .FirstOrDefaultAsync(p => p.StudenteId == StudenteId);
+
+        colloquio = await DbContext.Colloqui
+            .Include(c => c.Ambiti).ThenInclude(a => a.Criteri)
+            .FirstOrDefaultAsync(c => c.StudenteId == StudenteId);
+
+        valutazioneFinale = await DbContext.ValutazioniFinali
+            .FirstOrDefaultAsync(v => v.StudenteId == StudenteId);
+
+        StateHasChanged();
+    }
+
+    // --- Aggiunta nuove valutazioni ---
+    private async Task AggiungiProvaSituazionale()
+    {
+        var nuova = new ProvaSituazionale
+            {
+                StudenteId = StudenteId,
+                Compiti = new List<ProvaSituazionaleCompito>
+            {
+                new ProvaSituazionaleCompito
+                {
+                    Nome = "Compito 1",
+                    Peso = 1,
+                    Indicatori = new List<ProvaSituazionaleIndicatore>
+                    {
+                        new ProvaSituazionaleIndicatore
+                        {
+                            Nome = "Indicatore 1",
+                            PunteggioMax = 100,
+                            Livello = LivelloTecnico.Base
+                        }
+                    }
+                }
+            }
+            };
+        DbContext.ProveSituazionali.Add(nuova);
+        await DbContext.SaveChangesAsync();
+        await ReloadData();
+    }
+
+    private double GetPesoPercentuale(ProvaSituazionaleCompito compito) => compito.Peso * 100;
+    private void SetPesoPercentuale(ProvaSituazionaleCompito compito, double valore)
+    {
+        compito.Peso = Math.Clamp(valore / 100.0, 0, 1);
+    }
+
+    private async Task AggiungiProvaMultidisciplinare()
+    {
+        var nuova = new ProvaMultidisciplinare
+            {
+                StudenteId = StudenteId,
+                Sezioni = new List<ProvaMultidisciplinareSezione>
+            {
+                new ProvaMultidisciplinareSezione
+                {
+                    Nome = "Sezione 1",
+                    Competenza = "Competenza 1",
+                    Peso = 1,
+                    NumDomande = 10,
+                    PuntiPerDomanda = 10,
+                    Punteggio = 0
+                }
+            }
+            };
+        DbContext.ProveMultidisciplinari.Add(nuova);
+        await DbContext.SaveChangesAsync();
+        await ReloadData();
+    }
+
+    private async Task AggiungiColloquio()
+    {
+        var nuovo = new Colloquio
+            {
+                StudenteId = StudenteId,
+                Ambiti = new List<ColloquioAmbito>
+            {
+                new ColloquioAmbito
+                {
+                    Nome = "Ambito 1",
+                    Competenza = "Competenza 1",
+                    Peso = 1,
+                    Criteri = new List<ColloquioCriterio>
+                    {
+                        new ColloquioCriterio
+                        {
+                            Descrizione = "Criterio 1",
+                            PesoRelativo = 100,
+                            Voto = 0
+                        }
+                    }
+                }
+            }
+            };
+        DbContext.Colloqui.Add(nuovo);
+        await DbContext.SaveChangesAsync();
+        await ReloadData();
+    }
+
+    private async Task AggiungiValutazioneFinale()
+    {
+        var nuova = new ValutazioneFinale
+            {
+                StudenteId = StudenteId,
+                VotoAmmissione = 0,
+                VotoFinale = 0,
+                DataCalcolo = DateTime.UtcNow
+            };
+        DbContext.ValutazioniFinali.Add(nuova);
+        await DbContext.SaveChangesAsync();
+        await ReloadData();
+    }
+
+    // --- Calcoli di punteggio ---
+    private double CalcolaPunteggioCriterio(ProvaSituazionaleIndicatore criterio)
+    {
+        // LivelloTecnico enum: Nullo=0, Base=60, Intermedio=80, Avanzato=100
+        return Math.Round(((int)criterio.Livello / 100.0) * criterio.PunteggioMax, 2);
+    }
+
+    private double CalcolaPunteggioCompito(ProvaSituazionaleCompito compito)
+    {
+        // Somma dei punteggi ottenuti per ogni criterio
+        return Math.Round(compito.Indicatori.Sum(i => CalcolaPunteggioCriterio(i)), 2);
+    }
+
+    private double CalcolaTotaleSituazionale()
+    {
+        if (provaSituazionale == null) return 0;
+        double totale = 0;
+        foreach (var compito in provaSituazionale.Compiti)
+        {
+            var maxCompito = compito.Indicatori.Sum(i => i.PunteggioMax);
+            if (maxCompito > 0)
+            {
+                // Normalizza il punteggio ottenuto sul massimo e applica il peso
+                totale += (CalcolaPunteggioCompito(compito) / maxCompito) * 100 * compito.Peso;
+            }
+        }
+        return Math.Round(totale, 2);
+    }
+
+    private double CalcolaTotaleMultidisciplinare()
+    {
+        if (provaMultidisciplinare == null) return 0;
+        double totale = 0;
+        foreach (var sezione in provaMultidisciplinare.Sezioni)
+        {
+            double max = sezione.NumDomande * sezione.PuntiPerDomanda;
+            if (max > 0)
+            {
+                totale += ((double)sezione.Punteggio / max) * 100 * sezione.Peso;
+            }
+        }
+        return Math.Round(totale, 2);
+    }
+
+    private double CalcolaPunteggioAmbito(ColloquioAmbito ambito)
+    {
+        if (ambito.Criteri.Count == 0) return 0;
+        double pesoTotale = ambito.Criteri.Sum(c => c.PesoRelativo);
+        if (pesoTotale == 0) return 0;
+        double score = 0;
+        foreach (var criterio in ambito.Criteri)
+        {
+            score += criterio.Voto * ((double)criterio.PesoRelativo / pesoTotale);
+        }
+        return Math.Round(score, 2);
+    }
+
+    private double CalcolaTotaleColloquio()
+    {
+        if (colloquio == null) return 0;
+        double totale = 0;
+        foreach (var ambito in colloquio.Ambiti)
+        {
+            totale += CalcolaPunteggioAmbito(ambito) * ambito.Peso;
+        }
+        // Scala 0-10 -> 0-100
+        return Math.Round(totale * 10, 2);
+    }
+
+    // --- Gestione dinamica compiti/criteri prova situazionale ---
+    private void AggiungiCompito()
+    {
+        if (provaSituazionale == null) return;
+        provaSituazionale.Compiti.Add(new ProvaSituazionaleCompito
+            {
+                Nome = "Nuovo Compito",
+                Peso = 0.1,
+                Indicatori = new List<ProvaSituazionaleIndicatore>
+            {
+                new ProvaSituazionaleIndicatore
+                {
+                    Nome = "Nuovo Criterio",
+                    PunteggioMax = 10,
+                    Livello = LivelloTecnico.Nullo
+                }
+            }
+            });
+    }
+
+    private void RimuoviCompito(ProvaSituazionaleCompito compito)
+    {
+        if (provaSituazionale == null) return;
+        provaSituazionale.Compiti.Remove(compito);
+    }
+
+    private void AggiungiCriterio(ProvaSituazionaleCompito compito)
+    {
+        compito.Indicatori.Add(new ProvaSituazionaleIndicatore
+            {
+                Nome = "Nuovo Criterio",
+                PunteggioMax = 10,
+                Livello = LivelloTecnico.Nullo
+            });
+    }
+
+    private void RimuoviCriterio(ProvaSituazionaleCompito compito, ProvaSituazionaleIndicatore criterio)
+    {
+        compito.Indicatori.Remove(criterio);
+    }
+
+    // --- Salvataggio ---
+    private async Task SalvaSituazionale()
+    {
+        if (provaSituazionale != null)
+        {
+            DbContext.Update(provaSituazionale);
+            await DbContext.SaveChangesAsync();
+            isSituazionaleEdit = false;
+            await ReloadData();
+        }
+    }
+    private void AnnullaSituazionale() { isSituazionaleEdit = false; }
+
+    private async Task SalvaMultidisciplinare()
+    {
+        if (provaMultidisciplinare != null)
+        {
+            DbContext.Update(provaMultidisciplinare);
+            await DbContext.SaveChangesAsync();
+            isMultidisciplinareEdit = false;
+            await ReloadData();
+        }
+    }
+    private void AnnullaMultidisciplinare() { isMultidisciplinareEdit = false; }
+
+    private async Task SalvaColloquio()
+    {
+        if (colloquio != null)
+        {
+            DbContext.Update(colloquio);
+            await DbContext.SaveChangesAsync();
+            isColloquioEdit = false;
+            await ReloadData();
+        }
+    }
+    private void AnnullaColloquio() { isColloquioEdit = false; }
+
+    private async Task SalvaFinale()
+    {
+        if (valutazioneFinale != null)
+        {
+            valutazioneFinale.VotoFinale = (int)Math.Round(
+                valutazioneFinale.VotoAmmissione * 0.45 +
+                CalcolaTotaleSituazionale() * 0.6 +
+                CalcolaTotaleMultidisciplinare() * 0.2 +
+                CalcolaTotaleColloquio() * 0.2
+            );
+            valutazioneFinale.DataCalcolo = DateTime.UtcNow;
+            DbContext.Update(valutazioneFinale);
+            await DbContext.SaveChangesAsync();
+            isFinaleEdit = false;
+            await ReloadData();
+        }
+    }
+    private void AnnullaFinale() { isFinaleEdit = false; }
+}

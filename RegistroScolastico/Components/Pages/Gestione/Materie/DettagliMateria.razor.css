@@ -1,0 +1,226 @@
+﻿.dettagli-materia-mainbox {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 2rem 2rem;
+    background: rgba(255,255,255,0.95);
+    border-radius: 28px;
+    box-shadow: 0 8px 48px 0 #2a52981a, 0 1.5px 8px #ffb34711;
+    transition: box-shadow 0.2s, background 0.2s;
+    position: relative;
+}
+
+.dettagli-materia-container {
+    width: 100%;
+    margin: 0 auto;
+    padding: 0;
+    background: transparent;
+}
+
+.dettagli-materia-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg, #2a5298 0%, #1e3c72 100%);
+    color: #fff;
+    border-radius: 18px;
+    padding: 1.2rem 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 24px rgba(30,60,114,0.13);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.dettagli-materia-back-btn {
+    font-size: 1.2rem;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.13);
+    color: #fff;
+    border: none;
+    transition: background 0.18s, color 0.18s, transform 0.18s, box-shadow 0.18s;
+    box-shadow: 0 1px 4px #2a529822;
+    outline: none;
+}
+
+    .dettagli-materia-back-btn:hover, .dettagli-materia-back-btn:focus {
+        background: #ffb347;
+        color: #1e3c72;
+        transform: scale(1.08) rotate(-6deg);
+        box-shadow: 0 4px 16px #ffb34755;
+    }
+
+.dettagli-materia-loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    font-size: 1.2rem;
+    animation: fadeInUp 0.7s cubic-bezier(.39,.575,.565,1) both;
+}
+
+.glass-card {
+    background: rgba(255,255,255,0.85);
+    border-radius: 18px;
+    box-shadow: 0 4px 32px rgba(30,60,114,0.13);
+    padding: 0;
+    margin-bottom: 2rem;
+    backdrop-filter: blur(4px) saturate(1.2);
+    border: 1.5px solid #e3eefd;
+    transition: box-shadow 0.2s, border 0.2s;
+}
+
+.card-body {
+    padding: 2rem 2rem 1.5rem 2rem;
+}
+
+.badge {
+    font-size: 1.05rem;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 0.4em 1em;
+    margin-right: 0.2em;
+    box-shadow: 0 1px 4px #ffb34733;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.badge-info-id {
+    font-size: 1.25rem;
+    padding: 0.7em 2em;
+    min-width: 180px;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(90deg, #e0e7ff 0%, #f8fafc 100%);
+    color: #2a5298;
+    border: 2px solid #b6c6e6;
+    box-shadow: 0 2px 12px #2a529822;
+}
+
+.badge-info-big {
+    font-size: 1.08rem;
+    padding: 0.6em 1.3em;
+    min-width: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    box-shadow: 0 2px 8px #2a529822;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #e0e7ff 0%, #f8fafc 100%);
+    color: #2a5298;
+    border: 1.5px solid #e3eefd;
+    margin-bottom: 0.5rem;
+}
+
+.badge-materia {
+    background: #e3eefd;
+    color: #2a5298;
+    font-weight: 600;
+    border: 1px solid #b6c6e6;
+    box-shadow: none;
+}
+
+.badge-moduli {
+    background: #ffecd2;
+    color: #ff4b2b;
+    font-weight: 600;
+    border: 1px solid #ffb347;
+    box-shadow: none;
+}
+
+.badge-docenti {
+    background: #e0f7fa;
+    color: #2a5298;
+    font-weight: 600;
+    border: 1px solid #2a5298;
+    box-shadow: none;
+}
+
+.materia-info-divider {
+    border: none;
+    border-top: 2.5px solid #e3eefd;
+    width: 60%;
+    margin-left: auto;
+    margin-right: auto;
+    opacity: 0.85;
+}
+
+.dettagli-materia-info-card,
+.dettagli-materia-moduli-card,
+.dettagli-materia-docenti-card {
+    max-width: 700px;
+    margin: 0 auto 2rem auto;
+}
+
+.glass-list-item {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 10px;
+    transition: background 0.18s, box-shadow 0.18s;
+}
+
+    .glass-list-item:hover {
+        background: #e3eefd;
+        box-shadow: 0 2px 8px #2a529822;
+    }
+
+.docente-badge {
+    background: rgba(255,255,255,0.7);
+    border: 1.5px solid #e3eefd;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px #2a529822;
+    font-size: 1.08rem;
+    font-weight: 500;
+    transition: background 0.18s, box-shadow 0.18s;
+}
+
+@media (max-width: 900px) {
+    .dettagli-materia-mainbox {
+        padding: 1.2rem 0.5rem 1rem 0.5rem;
+        border-radius: 14px;
+    }
+
+    .dettagli-materia-header {
+        padding: 0.8rem 1rem;
+        font-size: 1.1rem;
+    }
+
+    .glass-card {
+        padding: 0.5rem;
+        border-radius: 10px;
+    }
+
+    .card-body {
+        padding: 1rem 0.5rem 1rem 0.5rem;
+    }
+
+    .badge-info-id {
+        font-size: 1.08rem;
+        padding: 0.5em 1em;
+        min-width: 120px;
+    }
+
+    .badge-info-big {
+        font-size: 0.98rem;
+        padding: 0.4em 0.7em;
+        min-width: 90px;
+    }
+}
+
+.animate-fadein {
+    animation: fadeInUp 0.7s cubic-bezier(.39,.575,.565,1) both;
+}
+
+@keyframes fadeInUp {
+    0% {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: none;
+    }
+}

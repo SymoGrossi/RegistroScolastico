@@ -1,0 +1,173 @@
+﻿@page "/collegidocente/modifica/{CollegioId:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Data
+@using RegistroScolastico.Models
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Modifica Collegio Docenti</PageTitle>
+
+<div class="modifica-collegio-mainbox animate-fadein">
+    <div class="modifica-collegio-container">
+        <div class="modifica-collegio-header">
+            <h2>
+                <i class="fas fa-users-gear me-2"></i>
+                Modifica Collegio Docenti
+            </h2>
+            <button class="btn btn-secondary modifica-collegio-back-btn" @onclick="GoBack" title="Torna alla gestione">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+
+        @if (collegio == null)
+        {
+            <div class="modifica-collegio-loader">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Caricamento...</span>
+                </div>
+                <span class="ms-2">Caricamento collegio docenti...</span>
+            </div>
+        }
+        else
+        {
+            <div class="glass-card p-4 mb-4 animate-fadein">
+                <div class="row mb-3">
+                    <div class="col-12 col-md-6 mb-2 mb-md-0">
+                        <span class="badge badge-info-big">
+                            <i class="fas fa-hashtag me-1"></i>ID: @collegio.Id
+                        </span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <span class="badge badge-info-big">
+                            <i class="fas fa-calendar-day me-1"></i>Creato il: @collegio.DataCreazione.ToShortDateString()
+                        </span>
+                    </div>
+                </div>
+                <hr class="collegio-info-divider mt-4 mb-2" />
+                <div class="text-center mb-2">
+                    <span class="badge badge-collegio">
+                        <i class="fas fa-users-gear me-1"></i>@collegio.Nome
+                    </span>
+                </div>
+            </div>
+
+            <EditForm Model="collegio" OnValidSubmit="SalvaModifiche">
+                <div class="glass-card p-4 animate-fadein">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">
+                            <i class="fas fa-chalkboard-teacher me-2"></i>
+                            Docenti nel collegio
+                            <span class="badge badge-docenti ms-2">@docentiSelezionati.Count</span>
+                        </h4>
+                        <button class="btn btn-danger glass-btn" type="button" @onclick="EliminaCollegio">
+                            <i class="fas fa-trash"></i> Elimina Collegio
+                        </button>
+                    </div>
+                    <div class="docenti-list-glass mb-3">
+                        @if (tuttiIDocenti.Count == 0)
+                        {
+                            <div class="text-muted text-center py-3">Nessun docente disponibile.</div>
+                        }
+                        else
+                        {
+                            @foreach (var docente in tuttiIDocenti)
+                            {
+                                var utente = docente.Utente;
+                                var profilo = utente?.Profilo;
+                                <label class="docente-checkbox glass-list-item d-flex align-items-center mb-2">
+                                    <input type="checkbox"
+                                           class="form-check-input me-2"
+                                           checked="@docentiSelezionati.Contains(docente.UtenteId)"
+                                           @onchange="e => AggiornaSelezione(docente.UtenteId, e)" />
+                                    <span>
+                                        <i class="fas fa-user-tie text-primary me-1"></i>
+                                        <b>@(profilo?.Cognome ?? "N/A") @(profilo?.Nome ?? "N/A")</b>
+                                        <span class="text-muted small ms-2">@utente?.Email</span>
+                                    </span>
+                                </label>
+                            }
+                        }
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button class="btn btn-primary glass-btn" type="submit">
+                            <i class="fas fa-save"></i> Salva
+                        </button>
+                    </div>
+                </div>
+            </EditForm>
+            @if (!string.IsNullOrEmpty(feedbackMessage))
+            {
+                <div class="mt-3 alert alert-info glass-card animate-fadein">@feedbackMessage</div>
+            }
+        }
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter] public int CollegioId { get; set; }
+
+    private CollegioDocenti? collegio;
+    private List<Docente> tuttiIDocenti = new();
+    private HashSet<int> docentiSelezionati = new();
+    private string feedbackMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        collegio = await DbContext.CollegiDocenti
+            .Include(c => c.Docenti)
+                .ThenInclude(d => d.Utente)
+                    .ThenInclude(u => u.Profilo)
+            .FirstOrDefaultAsync(c => c.Id == CollegioId);
+
+        tuttiIDocenti = await DbContext.Docenti
+            .Include(d => d.Utente)
+                .ThenInclude(u => u.Profilo)
+            .OrderBy(d => d.Utente.Profilo.Cognome)
+            .ThenBy(d => d.Utente.Profilo.Nome)
+            .ToListAsync();
+
+        if (collegio != null)
+        {
+            docentiSelezionati = collegio.Docenti.Select(d => d.UtenteId).ToHashSet();
+        }
+    }
+
+    private async Task EliminaCollegio()
+    {
+        if (collegio != null)
+        {
+            DbContext.CollegiDocenti.Remove(collegio);
+            await DbContext.SaveChangesAsync();
+            NavigationManager.NavigateTo("/gestione");
+        }
+    }
+
+    private void AggiornaSelezione(int docenteId, ChangeEventArgs e)
+    {
+        bool isChecked = e.Value is bool b && b;
+        if (isChecked)
+            docentiSelezionati.Add(docenteId);
+        else
+            docentiSelezionati.Remove(docenteId);
+    }
+
+    private async Task SalvaModifiche()
+    {
+        if (collegio != null)
+        {
+            collegio.Docenti = tuttiIDocenti
+                .Where(d => docentiSelezionati.Contains(d.UtenteId))
+                .ToList();
+
+            await DbContext.SaveChangesAsync();
+            feedbackMessage = "Collegio aggiornato con successo!";
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/gestione");
+    }
+}

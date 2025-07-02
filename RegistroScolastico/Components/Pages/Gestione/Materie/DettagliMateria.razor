@@ -1,0 +1,179 @@
+﻿@page "/materie/dettagli/{MateriaId:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Dettagli Materia</PageTitle>
+
+<div class="dettagli-materia-mainbox animate-fadein">
+    <div class="dettagli-materia-container">
+        <div class="dettagli-materia-header">
+            <h2>
+                <i class="fas fa-book-open me-2"></i>
+                Dettaglio Materia
+            </h2>
+            <button class="btn btn-secondary dettagli-materia-back-btn" @onclick="GoBack" title="Torna alla gestione materie">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="dettagli-materia-loader">
+                <div class="spinner-border text-primary" role="status"></div>
+                <span class="ms-2">Caricamento materia...</span>
+            </div>
+        }
+        else if (materia == null)
+        {
+            <div class="alert alert-danger mt-4 animate-fadein">Materia non trovata.</div>
+        }
+        else
+        {
+            <div class="glass-card dettagli-materia-info-card animate-fadein">
+                <div class="card-body">
+                    <h3 class="card-title text-primary mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Info Materia
+                    </h3>
+                    <div class="row justify-content-center mb-2">
+                        <div class="col-12 d-flex justify-content-center mb-2">
+                            <span class="badge badge-info-big badge-info-id">
+                                <i class="fas fa-hashtag me-1"></i>ID: @materia.Id
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row justify-content-center gy-2 mb-2">
+                        <div class="col-12 col-md-6 d-flex justify-content-center">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-calendar-day me-1"></i>
+                                Creata il: @(materia.DataCreazione?.ToString("dd/MM/yyyy") ?? "N/A")
+                            </span>
+                        </div>
+                        <div class="col-12 col-md-6 d-flex justify-content-center">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-edit me-1"></i>
+                                Ultima modifica: @(materia.DataModifica?.ToString("dd/MM/yyyy") ?? "N/A")
+                            </span>
+                        </div>
+                    </div>
+                    <hr class="materia-info-divider mt-4 mb-2" />
+                    <div class="text-center mb-2">
+                        <span class="badge badge-materia">
+                            <i class="fas fa-book-open me-1"></i>@materia.Nome
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card dettagli-materia-moduli-card animate-fadein">
+                <div class="card-body">
+                    <h4 class="mb-3 text-center">
+                        <i class="fas fa-layer-group me-2"></i>
+                        Moduli Associati
+                        <span class="badge badge-moduli ms-2">@moduli.Count</span>
+                    </h4>
+                    @if (moduli.Any())
+                    {
+                        <ul class="list-group list-group-flush mb-0">
+                            @foreach (var modulo in moduli)
+                            {
+                                <li class="list-group-item glass-list-item d-flex align-items-center">
+                                    <span class="fw-semibold text-primary">
+                                        <i class="fas fa-cube me-2"></i>@modulo.Nome
+                                    </span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="text-muted text-center py-2">Nessun modulo associato.</div>
+                    }
+                </div>
+            </div>
+
+            <div class="glass-card dettagli-materia-docenti-card animate-fadein">
+                <div class="card-body">
+                    <h4 class="mb-3 text-center">
+                        <i class="fas fa-chalkboard-teacher me-2"></i>
+                        Docenti che insegnano questa materia
+                        <span class="badge badge-docenti ms-2">@docenti.Count</span>
+                    </h4>
+                    @if (docenti.Any())
+                    {
+                        <div class="row">
+                            @foreach (var docente in docenti)
+                            {
+                                <div class="col-12 col-md-6 col-lg-4 mb-2">
+                                    <div class="docente-badge glass-list-item d-flex align-items-center gap-2 p-2">
+                                        <i class="fas fa-user-tie text-primary"></i>
+                                        <span class="fw-semibold">
+                                            @docente.Utente?.Profilo?.Cognome @docente.Utente?.Profilo?.Nome
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted text-center py-2">Nessun docente associato.</div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter]
+    public int MateriaId { get; set; }
+
+    private Materia? materia;
+    private List<Modulo> moduli = new();
+    private List<Docente> docenti = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        materia = await DbContext.Materie
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == MateriaId);
+
+        if (materia != null)
+        {
+            // Carica moduli associati
+            moduli = await DbContext.ModuliMaterie
+                .Where(mm => mm.MateriaId == MateriaId)
+                .Include(mm => mm.Modulo)
+                .Select(mm => mm.Modulo)
+                .AsNoTracking()
+                .ToListAsync();
+
+            // Carica docenti associati (tramite MateriaClasse)
+            docenti = await DbContext.MaterieClassi
+                .Where(mc => mc.MateriaId == MateriaId)
+                .Include(mc => mc.Docente)
+                    .ThenInclude(d => d.Utente)
+                        .ThenInclude(u => u.Profilo)
+                .Select(mc => mc.Docente)
+                .Distinct()
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        isLoading = false;
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/gestione");
+    }
+}

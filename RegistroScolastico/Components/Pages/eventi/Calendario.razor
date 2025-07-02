@@ -1,0 +1,235 @@
+@page "/calendario"
+@using System.Globalization
+
+<PageTitle>Calendario Eventi</PageTitle>
+
+<div class="calendar-container">
+    <div class="calendar-header">
+        <button class="btn btn-light nav-btn" @onclick="PrevMonth" title="Mese precedente" aria-label="Mese precedente">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <span class="calendar-title animate-fadein">@CurrentMonth.ToString("MMMM yyyy", CultureInfo.CurrentCulture)</span>
+        <button class="btn btn-light nav-btn" @onclick="NextMonth" title="Mese successivo" aria-label="Mese successivo">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+    <div class="calendar-grid">
+        @foreach (var dayName in DayNames)
+        {
+            <div class="calendar-dayname">@dayName</div>
+        }
+        @for (int i = 0; i < FirstDayOfWeek; i++)
+        {
+            <div class="calendar-day empty"></div>
+        }
+        @for (int day = 1; day <= DaysInMonth; day++)
+        {
+            var date = new DateTime(CurrentMonth.Year, CurrentMonth.Month, day);
+            bool isToday = date.Date == DateTime.Today;
+            bool isSelected = SelectedDate?.Date == date.Date;
+            var eventsForDay = Events.Where(e => e.Date.Date == date.Date).ToList();
+            bool hasEvents = eventsForDay.Any();
+
+            <div class="calendar-day @(isToday ? "today" : "") @(isSelected ? "selected" : "") @(hasEvents ? "has-events" : "")"
+                 @onclick="() => SelectDate(date)"
+                 tabindex="0"
+                 aria-label="@($"{date:dddd dd MMMM yyyy}{(hasEvents ? $", {eventsForDay.Count} evento/i" : "")}")"
+                 @onkeydown="(e => OnDayKeyDown(e, date))">
+                <span>@day</span>
+                @if (hasEvents)
+                {
+                    <span class="event-dot" title="@string.Join(", ", eventsForDay.Select(ev => ev.Title))"></span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (SelectedDate != null)
+{
+    <div class="calendar-details glass-card mt-4 animate-fadein">
+        <h5>
+            <i class="fas fa-calendar-day me-2"></i>
+            Dettagli per il @SelectedDate.Value.ToString("dd MMMM yyyy", CultureInfo.CurrentCulture)
+        </h5>
+        <ul class="list-group mb-3">
+            @if (EventsOnSelectedDate.Any())
+            {
+                @foreach (var ev in EventsOnSelectedDate)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center animate-fadein">
+                        <span>
+                            <b>@ev.Title</b>
+                            @if (!string.IsNullOrWhiteSpace(ev.Description))
+                            {
+                                <span class="text-muted ms-2">@ev.Description</span>
+                            }
+                        </span>
+                        <span>
+                            <button class="btn btn-sm btn-warning me-1" @onclick="() => EditEvent(ev)" title="Modifica evento" aria-label="Modifica evento">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteEvent(ev)" title="Elimina evento" aria-label="Elimina evento">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </span>
+                    </li>
+                }
+            }
+            else
+            {
+                <li class="list-group-item text-muted animate-fadein">Nessun evento per questo giorno.</li>
+            }
+        </ul>
+        <button class="btn btn-success" @onclick="ShowAddEvent">
+            <i class="fas fa-plus"></i> Aggiungi Evento
+        </button>
+    </div>
+}
+
+@if (ShowEventModal)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content glass-card animate-fadein">
+                <div class="modal-header">
+                    <h5 class="modal-title">@((EditingEvent?.Id ?? 0) == 0 ? "Aggiungi Evento" : "Modifica Evento")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseEventModal" aria-label="Chiudi"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="EditingEvent" OnValidSubmit="SaveEvent">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label class="form-label">Titolo <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="EditingEvent.Title" required maxlength="100" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Descrizione</label>
+                            <InputTextArea class="form-control" @bind-Value="EditingEvent.Description" maxlength="250" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Data</label>
+                            <InputDate class="form-control" @bind-Value="EditingEvent.Date" />
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseEventModal">Annulla</button>
+                            <button type="submit" class="btn btn-primary">Salva</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DateTime CurrentMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? SelectedDate = DateTime.Today;
+    private List<EventoCalendario> Events = new();
+    private EventoCalendario? EditingEvent;
+    private bool ShowEventModal = false;
+
+    private string[] DayNames => CultureInfo.CurrentCulture.DateTimeFormat.AbbreviatedDayNames;
+    private int DaysInMonth => DateTime.DaysInMonth(CurrentMonth.Year, CurrentMonth.Month);
+    private int FirstDayOfWeek => ((int)CurrentMonth.DayOfWeek + 7 - (int)CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek) % 7;
+
+    private IEnumerable<EventoCalendario> EventsOnSelectedDate =>
+        Events.Where(e => e.Date.Date == SelectedDate?.Date);
+
+    private void PrevMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(-1);
+        SelectedDate = null;
+    }
+
+    private void NextMonth()
+    {
+        CurrentMonth = CurrentMonth.AddMonths(1);
+        SelectedDate = null;
+    }
+
+    private void SelectDate(DateTime date)
+    {
+        SelectedDate = date;
+    }
+
+    private void OnDayKeyDown(KeyboardEventArgs e, DateTime date)
+    {
+        if (e.Key == "Enter" || e.Key == " ")
+        {
+            SelectDate(date);
+        }
+    }
+
+    private void ShowAddEvent()
+    {
+        EditingEvent = new EventoCalendario
+            {
+                Date = SelectedDate ?? DateTime.Today
+            };
+        ShowEventModal = true;
+    }
+
+    private void EditEvent(EventoCalendario ev)
+    {
+        EditingEvent = new EventoCalendario
+            {
+                Id = ev.Id,
+                Date = ev.Date,
+                Title = ev.Title,
+                Description = ev.Description
+            };
+        ShowEventModal = true;
+    }
+
+    private void CloseEventModal()
+    {
+        ShowEventModal = false;
+        EditingEvent = null;
+    }
+
+    private void SaveEvent()
+    {
+        if (EditingEvent == null) return;
+
+        if (EditingEvent.Id == 0)
+        {
+            EditingEvent.Id = Events.Any() ? Events.Max(e => e.Id) + 1 : 1;
+            Events.Add(new EventoCalendario
+                {
+                    Id = EditingEvent.Id,
+                    Date = EditingEvent.Date,
+                    Title = EditingEvent.Title,
+                    Description = EditingEvent.Description
+                });
+        }
+        else
+        {
+            var ev = Events.FirstOrDefault(e => e.Id == EditingEvent.Id);
+            if (ev != null)
+            {
+                ev.Title = EditingEvent.Title;
+                ev.Description = EditingEvent.Description;
+                ev.Date = EditingEvent.Date;
+            }
+        }
+        CloseEventModal();
+    }
+
+    private void DeleteEvent(EventoCalendario ev)
+    {
+        Events.Remove(ev);
+    }
+
+    public class EventoCalendario
+    {
+        public int Id { get; set; }
+        public DateTime Date { get; set; }
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string Title { get; set; } = string.Empty;
+        [System.ComponentModel.DataAnnotations.MaxLength(250)]
+        public string? Description { get; set; }
+    }
+}

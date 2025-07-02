@@ -1,0 +1,422 @@
+﻿@page "/classi"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@inject ILogger<ElencoClassi> Logger
+
+<PageTitle>Elenco Classi</PageTitle>
+
+<div class="elenco-classi-mainbox">
+    <div class="elenco-classi-container">
+        <div class="elenco-classi-container">
+            <div class="elenco-classi-header">
+                <h2>
+                    <i class="fas fa-layer-group me-2"></i>
+                    Elenco Classi
+                </h2>
+                <div class="elenco-classi-actions">
+                    <select class="form-select elenco-classi-select ms-3" @bind="AnnoFormativoSelezionato" @bind:event="onchange">
+                        <option value="0">Tutti gli anni</option>
+                        @foreach (var anno in AnniFormativi)
+                        {
+                            <option value="@anno.Id">@anno.Nome</option>
+                        }
+                    </select>
+                    <button class="btn btn-success elenco-classi-btn" @onclick="CreaClasse">
+                        <i class="fas fa-plus-circle me-1"></i> Classe
+                    </button>
+                    <button class="btn btn-primary elenco-classi-btn btn-importa-classi ms-2" @onclick="ImportaClassi">
+                        <i class="fas fa-file-import me-1"></i> Importa Classi
+                    </button>
+
+                </div>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="elenco-classi-loader">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Caricamento...</span>
+                    </div>
+                    <p class="ms-2">Caricamento classi...</p>
+                </div>
+            }
+            else
+            {
+                <div class="elenco-classi-card glass-card animate-fadein">
+                    <div class="elenco-classi-card-body">
+                        <div class="elenco-classi-toolbar mb-3 d-flex flex-wrap align-items-center justify-content-between">
+                            <div class="elenco-classi-search">
+                                <input type="text" class="form-control elenco-classi-input" placeholder="Cerca classe..."
+                                       @bind="FiltroTestuale" @bind:event="oninput" />
+                            </div>
+                            <div class="elementi-per-pagina-wrap ms-0 ms-md-3 mt-2 mt-md-0">
+                                <label class="elementi-per-pagina-label" for="elementiPerPagina">Elementi per pagina:</label>
+                                <input id="elementiPerPagina" type="number" min="1" max="100"
+                                       class="elementi-per-pagina-input"
+                                       @bind="ElementiPerPagina" />
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table elenco-classi-table">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center cursor-pointer elenco-classi-sort-header @GetSortHeaderClass(nameof(Classe.Anno))" @onclick="() => OrdinaPer(nameof(Classe.Anno))">
+                                            <i class="fas fa-calendar-alt me-1"></i>Anno @RenderSortIcon(nameof(Classe.Anno))
+                                        </th>
+                                        <th class="text-center cursor-pointer elenco-classi-sort-header @GetSortHeaderClass(nameof(Classe.Sezione))" @onclick="() => OrdinaPer(nameof(Classe.Sezione))">
+                                            <i class="fas fa-th-large me-1"></i>Sezione @RenderSortIcon(nameof(Classe.Sezione))
+                                        </th>
+                                        <th class="cursor-pointer elenco-classi-sort-header @GetSortHeaderClass(CorsoNome)" @onclick="() => OrdinaPer(CorsoNome)">
+                                            <i class="fas fa-graduation-cap me-1"></i>Specializzazione @RenderSortIcon(CorsoNome)
+                                        </th>
+                                        <th class="cursor-pointer elenco-classi-sort-header @GetSortHeaderClass(AnnoFormativoNome)" @onclick="() => OrdinaPer(AnnoFormativoNome)">
+                                            <i class="fas fa-calendar me-1"></i>Anno Formativo @RenderSortIcon(AnnoFormativoNome)
+                                        </th>
+                                        <th>Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (ClassiPaginati.Any())
+                                    {
+                                        @foreach (var classe in ClassiPaginati)
+                                        {
+                                            <tr class="elenco-classi-row">
+                                                <td class="text-center">
+                                                    <span class="badge badge-anno">
+                                                        <i class="fas fa-calendar-alt me-2"></i>@classe.Anno?.Nome
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="badge badge-sezione">
+                                                        <i class="fas fa-th-large me-2"></i>@classe.Sezione?.Nome
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge badge-corso me-1">
+                                                        <i class="fas fa-graduation-cap me-2"></i>@classe.Corso?.Nome
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge badge-annoformativo">
+                                                        <i class="fas fa-calendar me-2"></i>@classe.AnnoFormativo?.Nome
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-info btn-sm elenco-classi-action-btn me-2" title="Dettagli" @onclick="() => NavigaADettaglioClasse(classe.Id)">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-warning btn-sm elenco-classi-action-btn me-2" title="Modifica" @onclick="() => NavigaAModificaClasse(classe.Id)">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-secondary btn-sm elenco-classi-action-btn" title="Valutazioni" @onclick="() => NavigaAValutazioniClasse(classe.Id)">
+                                                        <i class="fas fa-clipboard-list"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted">Nessuna classe trovata.</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap">
+                            <div>
+                                <i class="fas fa-info-circle me-1"></i>
+                                Mostrando <strong>@ClassiPaginati.Count</strong> di <strong>@ClassiFiltrate.Count</strong> classi (pagina @PaginaCorrente di @TotalePagine)
+                            </div>
+                            <div class="pagination-wrap mt-2 mt-md-0">
+                                <button class="btn btn-outline-primary btn-sm me-1" @onclick="PaginaPrecedente" disabled="@(PaginaCorrente == 1)">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                @for (int i = 1; i <= TotalePagine; i++)
+                                {
+                                    <button class="btn btn-sm @(i == PaginaCorrente ? "btn-primary" : "btn-outline-primary") me-1" @onclick="() => VaiAPagina(i)">
+                                        @i
+                                    </button>
+                                }
+                                <button class="btn btn-outline-primary btn-sm" @onclick="PaginaSuccessiva" disabled="@(PaginaCorrente == TotalePagine)">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    private const string CorsoNome = "Corso.Nome";
+    private const string AnnoFormativoNome = "AnnoFormativo.Nome";
+    private List<Classe> Classi { get; set; } = new List<Classe>();
+    private List<Classe> ClassiFiltrate { get; set; } = new List<Classe>();
+    private List<Classe> ClassiPaginati { get; set; } = new List<Classe>();
+    private List<AnnoFormativo> AnniFormativi { get; set; } = new List<AnnoFormativo>();
+    private int _annoFormativoSelezionato = 0;
+    private int _elementiPerPagina = 10;
+    private string _filtroTestuale = string.Empty;
+    private bool isLoading = true;
+    private string _campoOrdinamento = nameof(Classe.Anno);
+    private bool _ordinamentoCrescente = true;
+    private string statusMessage = string.Empty;
+    private bool isError;
+
+    private int PaginaCorrente { get; set; } = 1;
+    private int TotalePagine => (int)Math.Ceiling((double)ClassiFiltrate.Count / ElementiPerPagina);
+
+    private int ElementiPerPagina
+    {
+        get => _elementiPerPagina;
+        set
+        {
+            if (value > 0 && value != _elementiPerPagina)
+            {
+                _elementiPerPagina = value;
+                PaginaCorrente = 1;
+                AggiornaPaginazione();
+                StateHasChanged();
+            }
+        }
+    }
+
+    private int AnnoFormativoSelezionato
+    {
+        get => _annoFormativoSelezionato;
+        set
+        {
+            if (_annoFormativoSelezionato != value)
+            {
+                _annoFormativoSelezionato = value;
+                FiltraClassi();
+            }
+        }
+    }
+
+    private string FiltroTestuale
+    {
+        get => _filtroTestuale;
+        set
+        {
+            if (_filtroTestuale != value)
+            {
+                _filtroTestuale = value;
+                FiltraClassi();
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadData();
+            isLoading = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading class list");
+            statusMessage = $"Errore durante il caricamento delle classi: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            Classi = await DbContext.Classi
+                .Include(c => c.AnnoFormativo)
+                .Include(c => c.Corso)
+                .Include(c => c.Anno)
+                .Include(c => c.Sezione)
+                .ToListAsync();
+
+            AnniFormativi = await DbContext.AnniFormativi.ToListAsync();
+            FiltraClassi();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading class data");
+            statusMessage = $"Errore durante il caricamento dei dati delle classi: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void FiltraClassi()
+    {
+        try
+        {
+            var query = Classi.AsQueryable();
+
+            if (AnnoFormativoSelezionato != 0)
+            {
+                query = query.Where(c => c.AnnoFormativoId == AnnoFormativoSelezionato);
+            }
+
+            if (!string.IsNullOrEmpty(FiltroTestuale))
+            {
+                query = query.Where(c =>
+                    (!string.IsNullOrEmpty(c.Anno.Nome) && c.Anno.Nome.Contains(FiltroTestuale, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(c.Sezione.Nome) && c.Sezione.Nome.Contains(FiltroTestuale, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.Corso != null && !string.IsNullOrEmpty(c.Corso.Nome) && c.Corso.Nome.Contains(FiltroTestuale, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.AnnoFormativo != null && !string.IsNullOrEmpty(c.AnnoFormativo.Nome) && c.AnnoFormativo.Nome.Contains(FiltroTestuale, StringComparison.OrdinalIgnoreCase))
+                );
+            }
+
+            ClassiFiltrate = query.ToList();
+            OrdinaClassi();
+            AggiornaPaginazione();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error filtering classes");
+            statusMessage = $"Errore durante il filtraggio delle classi: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void OrdinaPer(string campo)
+    {
+        try
+        {
+            if (_campoOrdinamento == campo)
+            {
+                _ordinamentoCrescente = !_ordinamentoCrescente;
+            }
+            else
+            {
+                _campoOrdinamento = campo;
+                _ordinamentoCrescente = true;
+            }
+            OrdinaClassi();
+            AggiornaPaginazione();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error sorting classes");
+            statusMessage = $"Errore durante l'ordinamento delle classi: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void OrdinaClassi()
+    {
+        try
+        {
+            switch (_campoOrdinamento)
+            {
+                case nameof(Classe.Anno):
+                    ClassiFiltrate = _ordinamentoCrescente
+                        ? ClassiFiltrate.OrderBy(c => c.Anno?.Nome).ToList()
+                        : ClassiFiltrate.OrderByDescending(c => c.Anno?.Nome).ToList();
+                    break;
+                case nameof(Classe.Sezione):
+                    ClassiFiltrate = _ordinamentoCrescente
+                        ? ClassiFiltrate.OrderBy(c => c.Sezione?.Nome).ToList()
+                        : ClassiFiltrate.OrderByDescending(c => c.Sezione?.Nome).ToList();
+                    break;
+                case CorsoNome:
+                    ClassiFiltrate = _ordinamentoCrescente
+                        ? ClassiFiltrate.OrderBy(c => c.Corso?.Nome).ToList()
+                        : ClassiFiltrate.OrderByDescending(c => c.Corso?.Nome).ToList();
+                    break;
+                case AnnoFormativoNome:
+                    ClassiFiltrate = _ordinamentoCrescente
+                        ? ClassiFiltrate.OrderBy(c => c.AnnoFormativo?.Nome).ToList()
+                        : ClassiFiltrate.OrderByDescending(c => c.AnnoFormativo?.Nome).ToList();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error ordering classes");
+            statusMessage = $"Errore durante l'ordinamento delle classi: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void AggiornaPaginazione()
+    {
+        if (PaginaCorrente < 1) PaginaCorrente = 1;
+        if (PaginaCorrente > TotalePagine) PaginaCorrente = TotalePagine == 0 ? 1 : TotalePagine;
+
+        ClassiPaginati = ClassiFiltrate
+            .Skip((PaginaCorrente - 1) * ElementiPerPagina)
+            .Take(ElementiPerPagina)
+            .ToList();
+    }
+
+    private void VaiAPagina(int pagina)
+    {
+        PaginaCorrente = pagina;
+        AggiornaPaginazione();
+    }
+
+    private void PaginaPrecedente()
+    {
+        if (PaginaCorrente > 1)
+        {
+            PaginaCorrente--;
+            AggiornaPaginazione();
+        }
+    }
+
+    private void PaginaSuccessiva()
+    {
+        if (PaginaCorrente < TotalePagine)
+        {
+            PaginaCorrente++;
+            AggiornaPaginazione();
+        }
+    }
+
+    private string GetSortHeaderClass(string campo)
+    {
+        return _campoOrdinamento == campo ? "elenco-classi-sort-active" : "";
+    }
+
+    private MarkupString RenderSortIcon(string campo)
+    {
+        if (_campoOrdinamento != campo) return (MarkupString)"";
+        return _ordinamentoCrescente
+            ? (MarkupString)"<i class='fas fa-arrow-up'></i>"
+            : (MarkupString)"<i class='fas fa-arrow-down'></i>";
+    }
+
+    private void CreaClasse()
+    {
+        Navigation.NavigateTo("/classi/crea");
+    }
+
+    private void NavigaADettaglioClasse(int id)
+    {
+        Navigation.NavigateTo($"/classi/dettagli/{id}");
+    }
+
+    private void NavigaAModificaClasse(int id)
+    {
+        Navigation.NavigateTo($"/classi/modifica/{id}");
+    }
+
+    private void ImportaClassi()
+    {
+        Navigation.NavigateTo("/classi/importa-massa");
+    }
+
+    private void NavigaAValutazioniClasse(int id)
+    {
+        Navigation.NavigateTo($"/valutazioni-classe/{id}");
+    }
+}

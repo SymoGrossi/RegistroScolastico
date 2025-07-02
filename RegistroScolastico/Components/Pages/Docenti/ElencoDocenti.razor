@@ -1,0 +1,431 @@
+﻿@page "/docenti"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@inject ILogger<ElencoDocenti> Logger
+
+<PageTitle>Elenco Docenti</PageTitle>
+
+<div class="elenco-docenti-mainbox">
+    <div class="elenco-docenti-container">
+        <div class="elenco-docenti-container">
+            <div class="elenco-docenti-header">
+                <h2>
+                    <i class="fas fa-chalkboard-teacher me-2"></i>
+                    Elenco Docenti
+                </h2>
+                <div class="elenco-docenti-actions">
+                    <button class="btn btn-success elenco-docenti-btn" @onclick="AggiungiDocente">
+                        <i class="fas fa-user-plus me-1"></i> Docente
+                    </button>
+                    <button class="btn btn-primary elenco-docenti-btn btn-importa-docenti ms-2" @onclick="ImportaDocenti">
+                        <i class="fas fa-file-import me-1"></i> Importa Docenti
+                    </button>
+                </div>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="elenco-docenti-loader">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Caricamento...</span>
+                    </div>
+                    <p class="ms-2">Caricamento docenti...</p>
+                </div>
+            }
+            else
+            {
+                <div class="elenco-docenti-card glass-card animate-fadein">
+                    <div class="elenco-docenti-card-body">
+                        <div class="elenco-docenti-toolbar mb-3 d-flex flex-wrap align-items-center justify-content-between">
+                            <div class="elenco-docenti-search">
+                                <input type="text" class="form-control elenco-docenti-search" placeholder="Cerca docente..."
+                                       @bind="FiltroTestuale" @bind:event="oninput" />
+                            </div>
+                            <div class="elementi-per-pagina-wrap ms-0 ms-md-3 mt-2 mt-md-0">
+                                <label class="elementi-per-pagina-label" for="elementiPerPagina">Elementi per pagina:</label>
+                                <input id="elementiPerPagina" type="number" min="1" max="100"
+                                       class="elementi-per-pagina-input"
+                                       @bind="ElementiPerPagina" />
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table elenco-docenti-table">
+                                <thead>
+                                    <tr>
+                                        <th class="cursor-pointer elenco-docenti-sort-header @GetSortHeaderClass("Cognome")" @onclick='() => OrdinaPer("Cognome")'>
+                                            <i class="fas fa-user me-1"></i> Cognome @RenderSortIcon("Cognome")
+                                        </th>
+                                        <th class="cursor-pointer elenco-docenti-sort-header @GetSortHeaderClass("Nome")" @onclick='() => OrdinaPer("Nome")'>
+                                            <i class="fas fa-user me-1"></i> Nome @RenderSortIcon("Nome")
+                                        </th>
+                                        <th class="cursor-pointer elenco-docenti-sort-header @GetSortHeaderClass("Materia")" @onclick='() => OrdinaPer("Materia")'>
+                                            <i class="fas fa-book me-1"></i> Materie @RenderSortIcon("Materia")
+                                        </th>
+                                        <th><i class="fas fa-envelope me-1"></i> Email</th>
+                                        <th>Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (DocentiPaginati.Any())
+                                    {
+                                        @foreach (var docente in DocentiPaginati)
+                                        {
+                                            <tr class="elenco-docenti-row"
+                                                @ondblclick="() => VaiADettagli(docente.UtenteId)"
+                                                style="cursor: pointer;">
+                                                <td>
+                                                    <span class="badge badge-docente">
+                                                        <i class="fas fa-user me-1"></i> @docente.Utente?.Profilo?.Cognome
+                                                    </span>
+                                                </td>
+                                                <td>@docente.Utente?.Profilo?.Nome</td>
+                                                <td>
+                                                    @{
+                                                        var materieUniche = docente.MaterieInsegnate
+                                                        .Where(mc => mc.Materia != null)
+                                                        .Select(mc => mc.Materia.Nome)
+                                                        .Distinct()
+                                                        .ToList();
+                                                    }
+                                                    <div class="materie-badge-wrap">
+                                                        @if (materieUniche.Any())
+                                                        {
+                                                            @foreach (var nomeMateria in materieUniche)
+                                                            {
+                                                                <span class="badge badge-materia me-1 mb-1">
+                                                                    <i class="fas fa-book me-1"></i> @nomeMateria
+                                                                </span>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted">-</span>
+                                                        }
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span class="badge badge-email">
+                                                        <i class="fas fa-envelope me-1"></i> @docente.Utente?.Email
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="azioni-btn-wrap">
+                                                        <button class="btn btn-info btn-sm elenco-docenti-action-btn me-2 mb-1" title="Dettagli" @onclick="() => VaiADettagli(docente.UtenteId)">
+                                                            <i class="fas fa-eye me-1"></i> Dettagli
+                                                        </button>
+                                                        <button class="btn btn-warning btn-sm elenco-docenti-action-btn me-2 mb-1" title="Modifica" @onclick="() => VaiAModifica(docente.UtenteId)">
+                                                            <i class="fas fa-edit me-1"></i> Modifica
+                                                        </button>
+                                                        <button class="btn btn-danger btn-sm elenco-docenti-action-btn mb-1" title="Elimina" @onclick="() => ConfermaElimina(docente)">
+                                                            <i class="fas fa-trash me-1"></i> Elimina
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted">Nessun docente trovato.</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="elenco-docenti-footer mt-2 d-flex justify-content-between align-items-center flex-wrap">
+                            <div>
+                                <i class="fas fa-info-circle me-1"></i>
+                                Mostrando <strong>@DocentiPaginati.Count</strong> di <strong>@DocentiFiltrati.Count</strong> docenti (pagina @PaginaCorrente di @TotalePagine)
+                            </div>
+                            <div class="pagination-wrap mt-2 mt-md-0">
+                                <button class="btn btn-outline-primary btn-sm me-1" @onclick="PaginaPrecedente" disabled="@(_paginaCorrente == 1)">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                @for (int i = 1; i <= TotalePagine; i++)
+                                {
+                                    <button class="btn btn-sm @(i == PaginaCorrente ? "btn-primary" : "btn-outline-primary") me-1" @onclick="() => VaiAPagina(i)">
+                                        @i
+                                    </button>
+                                }
+                                <button class="btn btn-outline-primary btn-sm" @onclick="PaginaSuccessiva" disabled="@(_paginaCorrente == TotalePagine)">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (DocenteDaEliminare != null)
+            {
+                <div class="modal fade show d-block" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content glass-card">
+                            <div class="modal-header bg-danger text-white">
+                                <h5><i class="fas fa-trash me-2"></i>Conferma Eliminazione</h5>
+                                <button type="button" class="btn-close btn-close-white" @onclick="AnnullaElimina"></button>
+                            </div>
+                            <div class="modal-body">
+                                Sei sicuro di voler eliminare il docente <strong>@DocenteDaEliminare.Utente?.Profilo?.Cognome @DocenteDaEliminare.Utente?.Profilo?.Nome</strong>?
+                                <br />
+                                <span class="text-danger small">Questa azione è irreversibile.</span>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary glass-btn" @onclick="AnnullaElimina">Annulla</button>
+                                <button type="button" class="btn btn-danger glass-btn" @onclick="EliminaDocente">Conferma Eliminazione</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-backdrop fade show"></div>
+            }
+
+            @if (!string.IsNullOrEmpty(statusMessage))
+            {
+                <div class="mt-3 alert @(isError ? "alert-danger" : "alert-success") glass-card">
+                    @statusMessage
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    private List<Docente> Docenti { get; set; } = new();
+    private List<Docente> DocentiFiltrati { get; set; } = new();
+    private List<Docente> DocentiPaginati { get; set; } = new();
+    private string _filtroTestuale = string.Empty;
+    private string _campoOrdinamento = "Cognome";
+    private bool _ordinamentoCrescente = true;
+    private bool isLoading = true;
+    private string statusMessage = string.Empty;
+    private bool isError;
+    private Docente? DocenteDaEliminare;
+
+    private int _paginaCorrente = 1;
+    private int _elementiPerPagina = 10;
+    private int ElementiPerPagina
+    {
+        get => _elementiPerPagina;
+        set
+        {
+            if (value > 0 && value != _elementiPerPagina)
+            {
+                _elementiPerPagina = value;
+                _paginaCorrente = 1;
+                AggiornaPaginazione();
+                StateHasChanged();
+            }
+        }
+    }
+    private int PaginaCorrente => _paginaCorrente;
+    private int TotalePagine => (int)Math.Ceiling((double)DocentiFiltrati.Count / ElementiPerPagina);
+
+    private string FiltroTestuale
+    {
+        get => _filtroTestuale;
+        set
+        {
+            if (_filtroTestuale != value)
+            {
+                _filtroTestuale = value;
+                _paginaCorrente = 1;
+                FiltraDocenti();
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            await LoadDocenti();
+            isLoading = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Errore caricamento docenti");
+            statusMessage = $"Errore durante il caricamento dei docenti: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task LoadDocenti()
+    {
+        var docenti = await DbContext.Docenti
+            .Include(d => d.Utente)
+                .ThenInclude(u => u.Profilo)
+            .Include(d => d.MaterieInsegnate)
+                .ThenInclude(mc => mc.Materia)
+            .ToListAsync();
+
+        Docenti = docenti;
+        FiltraDocenti();
+    }
+
+    private void FiltraDocenti()
+    {
+        var query = Docenti.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(FiltroTestuale))
+        {
+            query = query.Where(d =>
+                (d.Utente.Profilo.Nome ?? "").Contains(FiltroTestuale, StringComparison.OrdinalIgnoreCase) ||
+                (d.Utente.Profilo.Cognome ?? "").Contains(FiltroTestuale, StringComparison.OrdinalIgnoreCase) ||
+                (d.Utente.Email ?? "").Contains(FiltroTestuale, StringComparison.OrdinalIgnoreCase) ||
+                (d.MaterieInsegnate != null && d.MaterieInsegnate.Any(mc => mc.Materia != null && mc.Materia.Nome.Contains(FiltroTestuale, StringComparison.OrdinalIgnoreCase)))
+            );
+        }
+
+        DocentiFiltrati = query.ToList();
+        OrdinaDocenti();
+        AggiornaPaginazione();
+    }
+
+    private void OrdinaPer(string campo)
+    {
+        if (_campoOrdinamento == campo)
+        {
+            _ordinamentoCrescente = !_ordinamentoCrescente;
+        }
+        else
+        {
+            _campoOrdinamento = campo;
+            _ordinamentoCrescente = true;
+        }
+        OrdinaDocenti();
+        AggiornaPaginazione();
+    }
+
+    private void OrdinaDocenti()
+    {
+        switch (_campoOrdinamento)
+        {
+            case "Cognome":
+                DocentiFiltrati = _ordinamentoCrescente
+                    ? DocentiFiltrati.OrderBy(d => d.Utente?.Profilo?.Cognome).ToList()
+                    : DocentiFiltrati.OrderByDescending(d => d.Utente?.Profilo?.Cognome).ToList();
+                break;
+            case "Nome":
+                DocentiFiltrati = _ordinamentoCrescente
+                    ? DocentiFiltrati.OrderBy(d => d.Utente?.Profilo?.Nome).ToList()
+                    : DocentiFiltrati.OrderByDescending(d => d.Utente?.Profilo?.Nome).ToList();
+                break;
+            case "Materia":
+                DocentiFiltrati = _ordinamentoCrescente
+                    ? DocentiFiltrati.OrderBy(d => d.MaterieInsegnate.FirstOrDefault()?.Materia?.Nome).ToList()
+                    : DocentiFiltrati.OrderByDescending(d => d.MaterieInsegnate.FirstOrDefault()?.Materia?.Nome).ToList();
+                break;
+        }
+    }
+
+    private void AggiornaPaginazione()
+    {
+        if (_paginaCorrente < 1) _paginaCorrente = 1;
+        if (_paginaCorrente > TotalePagine) _paginaCorrente = TotalePagine == 0 ? 1 : TotalePagine;
+
+        DocentiPaginati = DocentiFiltrati
+            .Skip((PaginaCorrente - 1) * ElementiPerPagina)
+            .Take(ElementiPerPagina)
+            .ToList();
+    }
+
+    private void VaiAPagina(int pagina)
+    {
+        _paginaCorrente = pagina;
+        AggiornaPaginazione();
+    }
+
+    private void PaginaPrecedente()
+    {
+        if (_paginaCorrente > 1)
+        {
+            _paginaCorrente--;
+            AggiornaPaginazione();
+        }
+    }
+
+    private void PaginaSuccessiva()
+    {
+        if (_paginaCorrente < TotalePagine)
+        {
+            _paginaCorrente++;
+            AggiornaPaginazione();
+        }
+    }
+
+    private string GetSortHeaderClass(string campo)
+    {
+        return _campoOrdinamento == campo ? "elenco-docenti-sort-active" : "";
+    }
+
+    private MarkupString RenderSortIcon(string campo)
+    {
+        if (_campoOrdinamento != campo) return (MarkupString)"";
+        return _ordinamentoCrescente
+            ? (MarkupString)"<i class='fas fa-arrow-up ms-1'></i>"
+            : (MarkupString)"<i class='fas fa-arrow-down ms-1'></i>";
+    }
+
+    private void AggiungiDocente()
+    {
+        Navigation.NavigateTo("/docenti/crea");
+    }
+
+    private void VaiADettagli(int utenteId)
+    {
+        Navigation.NavigateTo($"/docenti/dettagli/{utenteId}");
+    }
+
+    private void VaiAModifica(int utenteId)
+    {
+        Navigation.NavigateTo($"/docenti/modifica/{utenteId}");
+    }
+
+    private void ImportaDocenti()
+    {
+        Navigation.NavigateTo("/docenti/importa-massa");
+    }
+
+    private void ConfermaElimina(Docente docente)
+    {
+        DocenteDaEliminare = docente;
+    }
+
+    private void AnnullaElimina()
+    {
+        DocenteDaEliminare = null;
+    }
+
+    private async Task EliminaDocente()
+    {
+        if (DocenteDaEliminare == null) return;
+        try
+        {
+            var docente = await DbContext.Docenti.FindAsync(DocenteDaEliminare.UtenteId);
+            if (docente != null)
+            {
+                DbContext.Docenti.Remove(docente);
+                await DbContext.SaveChangesAsync();
+                statusMessage = "Docente eliminato con successo!";
+                isError = false;
+                await LoadDocenti();
+            }
+            DocenteDaEliminare = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Errore eliminazione docente");
+            statusMessage = $"Errore durante l'eliminazione del docente: {ex.Message}";
+            isError = true;
+        }
+    }
+}

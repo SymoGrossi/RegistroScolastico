@@ -1,0 +1,356 @@
+﻿@page "/classi/importa-massa"
+@inject NavigationManager Navigation
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext Db
+
+<PageTitle>Importa Classi in Massa</PageTitle>
+
+<div class="elenco-studenti-mainbox animate-fadein">
+    <div class="elenco-studenti-container">
+        <div class="elenco-studenti-header">
+            <h2>
+                <i class="fas fa-layer-group me-2"></i>
+                Importa Classi in Massa
+            </h2>
+            <button class="btn btn-secondary elenco-studenti-btn" @onclick="TornaIndietro">
+                <i class="fas fa-arrow-left"></i> Torna indietro
+            </button>
+        </div>
+
+        <div class="glass-card p-4 mb-4">
+            <div class="mb-3">
+                <label>Anno Formativo:</label>
+                <select @bind="AnnoFormativoId" class="form-control glass-input">
+                    <option value="">-- Seleziona Anno Formativo --</option>
+                    @foreach (var anno in AnniFormativi)
+                    {
+                        <option value="@anno.Id">@anno.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label>Specializzazione / Corso:</label>
+                <select @bind="CorsoId" class="form-control glass-input">
+                    <option value="">-- Seleziona Specializzazione --</option>
+                    @foreach (var corso in Corsi)
+                    {
+                        <option value="@corso.Id">@corso.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label>
+                    Inserisci ogni classe su una riga (es. 4A, 4 a, 5C, 3 A):
+                </label>
+                <textarea @bind="InputClassi" class="form-control glass-input" rows="6" placeholder="es.
+4A
+5A
+3 C
+2 b"></textarea>
+            </div>
+            <button class="btn btn-primary elenco-studenti-btn" @onclick="GeneraClassi" disabled="@(!PuoiGenerareClassi)">
+                <i class="fas fa-layer-group"></i> Genera Classi
+            </button>
+            @if (!string.IsNullOrWhiteSpace(MessaggioErrore))
+            {
+                <div class="alert alert-danger mt-3" @key="MessaggioErrore">@((MarkupString)MessaggioErrore)</div>
+            }
+        </div>
+
+        @if (ClassiGenerati?.Any() == true)
+        {
+            <div class="glass-card p-4 mb-4">
+                <h4>Anteprima Classi Generate</h4>
+                <div class="row g-3">
+                    @foreach (var classe in ClassiGenerati)
+                    {
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <span class="fw-bold">@classe.AnnoNome @classe.SezioneNome</span>
+                                        <span class="text-muted ms-2" style="font-size:0.98em;">
+                                            (@classe.CorsoNome, @classe.AnnoFormativoNome)
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 fw-semibold" style="font-size:0.98em;">Materie associate:</label>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach (var materia in Materie)
+                                            {
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input"
+                                                           type="checkbox"
+                                                           id="materia_@(classe.AnnoId)_@(classe.SezioneId)_@(materia.Id)"
+                                                           value="@materia.Id"
+                                                           checked="@classe.MaterieSelezionate.Contains(materia.Id)"
+                                                           @onchange="@((ChangeEventArgs e) => ToggleMateria(classe, materia.Id, e.Value))" />
+                                                    <label class="form-check-label" for="materia_@(classe.AnnoId)_@(classe.SezioneId)_@(materia.Id)">@materia.Nome</label>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <button class="btn btn-success elenco-studenti-btn mt-4" @onclick="SalvaClassi">
+                    <i class="fas fa-save"></i> Salva Classi
+                </button>
+                @if (MessaggioSalvataggio != null)
+                {
+                    <div class="alert alert-info mt-2">@MessaggioSalvataggio</div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    private string? InputClassi { get; set; }
+    private int? AnnoFormativoId { get; set; }
+    private int? CorsoId { get; set; }
+    private string? MessaggioErrore { get; set; }
+    private string? MessaggioSalvataggio { get; set; }
+    private List<AnnoFormativo> AnniFormativi { get; set; } = new();
+    private List<Corso> Corsi { get; set; } = new();
+    private List<Anno> Anni { get; set; } = new();
+    private List<Sezione> Sezioni { get; set; } = new();
+    private List<Materia> Materie { get; set; } = new();
+    private List<ClassePreview> ClassiGenerati { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            AnniFormativi = await Db.AnniFormativi.OrderByDescending(a => a.Nome).ToListAsync();
+            Corsi = await Db.Corsi.OrderBy(c => c.Nome).ToListAsync();
+            Anni = await Db.Anni.OrderBy(a => a.Nome).ToListAsync();
+            Sezioni = await Db.Sezioni.OrderBy(s => s.Nome).ToListAsync();
+            Materie = await Db.Materie.OrderBy(m => m.Nome).ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            MessaggioErrore = $"Errore nel caricamento dei dati: {ex.Message}";
+        }
+    }
+
+    private bool PuoiGenerareClassi =>
+        AnnoFormativoId != null
+        && CorsoId != null
+        && !string.IsNullOrWhiteSpace(InputClassi);
+
+    private async Task GeneraClassi()
+    {
+        MessaggioSalvataggio = null;
+        MessaggioErrore = null;
+        ClassiGenerati = new List<ClassePreview>();
+
+        if (AnnoFormativoId == null)
+        {
+            MessaggioErrore = "Devi selezionare l'anno formativo.";
+            return;
+        }
+        if (CorsoId == null)
+        {
+            MessaggioErrore = "Devi selezionare la specializzazione/corso.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(InputClassi))
+        {
+            MessaggioErrore = "Devi inserire almeno una classe.";
+            return;
+        }
+
+        try
+        {
+            var anniMap = Anni.ToDictionary(
+                a => new string(a.Nome.Where(char.IsDigit).ToArray()),
+                a => a
+            );
+            var sezioniValide = Sezioni.Select(s => s.Nome.ToUpperInvariant()).ToList();
+
+            var anniRange = string.Join(", ", Anni.Select(a => a.Nome));
+            var sezioniRange = string.Join(", ", Sezioni.Select(s => s.Nome));
+
+            var righe = InputClassi
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            var errori = new List<string>();
+
+            foreach (var riga in righe)
+            {
+                var clean = riga.Trim().ToUpperInvariant().Replace("  ", " ");
+                if (string.IsNullOrWhiteSpace(clean))
+                    continue;
+
+                var match = System.Text.RegularExpressions.Regex.Match(clean, @"^(\d+)\s*([A-Z])$");
+                if (!match.Success)
+                {
+                    errori.Add($"Formato non valido: \"{riga}\". Usa ad esempio 4A o 4 A.");
+                    continue;
+                }
+
+                var annoNome = match.Groups[1].Value;
+                var sezioneNome = match.Groups[2].Value;
+
+                if (!anniMap.TryGetValue(annoNome, out var anno))
+                {
+                    errori.Add($"Anno \"{annoNome}\" non valido. Anni validi: {anniRange}");
+                    continue;
+                }
+                if (!sezioniValide.Contains(sezioneNome))
+                {
+                    errori.Add($"Sezione \"{sezioneNome}\" non valida. Sezioni valide: {sezioniRange}");
+                    continue;
+                }
+
+                var sezione = Sezioni.First(s => s.Nome.ToUpperInvariant() == sezioneNome);
+                var corso = Corsi.First(c => c.Id == CorsoId);
+                var annoFormativo = AnniFormativi.First(a => a.Id == AnnoFormativoId);
+
+                // Controllo asincrono per classe già esistente nel DB
+                bool esiste = await Db.Classi.AnyAsync(c =>
+                    c.AnnoId == anno.Id &&
+                    c.SezioneId == sezione.Id &&
+                    c.CorsoId == corso.Id &&
+                    c.AnnoFormativoId == annoFormativo.Id);
+
+                if (esiste)
+                {
+                    errori.Add($"Classe {anno.Nome}{sezione.Nome} già presente nel database per il corso e anno formativo selezionati.");
+                    continue;
+                }
+
+                // Evita duplicati nell'importazione corrente
+                if (ClassiGenerati.Any(c => c.AnnoId == anno.Id && c.SezioneId == sezione.Id))
+                {
+                    errori.Add($"Classe {anno.Nome}{sezione.Nome} duplicata nell'elenco inserito.");
+                    continue;
+                }
+
+                ClassiGenerati.Add(new ClassePreview
+                    {
+                        AnnoId = anno.Id,
+                        SezioneId = sezione.Id,
+                        CorsoId = corso.Id,
+                        AnnoFormativoId = annoFormativo.Id,
+                        AnnoNome = anno.Nome,
+                        SezioneNome = sezione.Nome,
+                        CorsoNome = corso.Nome,
+                        AnnoFormativoNome = annoFormativo.Nome,
+                        MaterieSelezionate = new List<int>()
+                    });
+            }
+
+            if (errori.Any())
+            {
+                MessaggioErrore = string.Join("<br/>", errori);
+            }
+            else if (!ClassiGenerati.Any())
+            {
+                MessaggioErrore = "Nessuna classe valida trovata.";
+            }
+        }
+        catch (Exception ex)
+        {
+            MessaggioErrore = $"Errore durante la generazione delle classi: {ex.Message}";
+        }
+    }
+
+    private void ToggleMateria(ClassePreview classe, int materiaId, object? value)
+    {
+        bool isChecked = value switch
+        {
+            bool b => b,
+            string s => s == "true" || s == "on",
+            _ => false
+        };
+
+        if (isChecked)
+        {
+            if (!classe.MaterieSelezionate.Contains(materiaId))
+                classe.MaterieSelezionate.Add(materiaId);
+        }
+        else
+        {
+            classe.MaterieSelezionate.Remove(materiaId);
+        }
+    }
+
+    private async Task SalvaClassi()
+    {
+        if (ClassiGenerati == null || !ClassiGenerati.Any())
+            return;
+
+        try
+        {
+            int salvate = 0;
+
+            foreach (var c in ClassiGenerati)
+            {
+                var classe = new Classe
+                    {
+                        AnnoId = c.AnnoId,
+                        SezioneId = c.SezioneId,
+                        CorsoId = c.CorsoId,
+                        AnnoFormativoId = c.AnnoFormativoId,
+                        DataCreazione = DateTime.UtcNow
+                    };
+
+                Db.Classi.Add(classe);
+                await Db.SaveChangesAsync(); // Serve per ottenere l'Id della classe
+
+                // Associa le materie selezionate
+                foreach (var materiaId in c.MaterieSelezionate)
+                {
+                    var materiaClasse = new MateriaClasse
+                        {
+                            ClasseId = classe.Id,
+                            MateriaId = materiaId
+                        };
+                    Db.MaterieClassi.Add(materiaClasse);
+                }
+
+                salvate++;
+            }
+
+            await Db.SaveChangesAsync();
+
+            MessaggioSalvataggio = $"Salvate {salvate} classi!";
+            StateHasChanged();
+            await Task.Delay(1200);
+
+            ClassiGenerati.Clear();
+            InputClassi = string.Empty;
+            TornaIndietro();
+        }
+        catch (Exception ex)
+        {
+            MessaggioErrore = $"Errore durante il salvataggio: {ex.Message}";
+        }
+    }
+
+    private void TornaIndietro()
+    {
+        Navigation.NavigateTo("/classi");
+    }
+
+    public class ClassePreview
+    {
+        public int AnnoId { get; set; }
+        public int SezioneId { get; set; }
+        public int CorsoId { get; set; }
+        public int AnnoFormativoId { get; set; }
+        public string? AnnoNome { get; set; }
+        public string? SezioneNome { get; set; }
+        public string? CorsoNome { get; set; }
+        public string? AnnoFormativoNome { get; set; }
+        public List<int> MaterieSelezionate { get; set; } = new();
+    }
+}

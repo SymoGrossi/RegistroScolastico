@@ -1,0 +1,259 @@
+﻿@page "/studenti/importa-massa"
+@inject NavigationManager Navigation
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext Db
+@using BCrypt.Net;
+
+<PageTitle>Importa Studenti in Massa</PageTitle>
+
+<div class="elenco-studenti-mainbox animate-fadein">
+    <div class="elenco-studenti-container">
+        <div class="elenco-studenti-header">
+            <h2>
+                <i class="fas fa-users me-2"></i>
+                Importa Studenti in Massa
+            </h2>
+            <button class="btn btn-secondary elenco-studenti-btn" @onclick="TornaIndietro">
+                <i class="fas fa-arrow-left"></i> Torna indietro
+            </button>
+        </div>
+
+        <div class="glass-card p-4 mb-4">
+            <div class="mb-3">
+                <label>Dominio Email Personalizzato:</label>
+                <input @bind="DominioEmail" class="form-control glass-input" placeholder="es. scuola.it" />
+            </div>
+            <div class="mb-3">
+                <label>
+                    Prefisso Email Personalizzato (opzionale):
+                    <span class="text-muted ms-2" style="font-size:0.98em;">
+                        es: <span style="font-family:monospace;">
+                            @GetEsempioEmail()
+                        </span>
+                    </span>
+                </label>
+                <input @bind="PrefissoEmail" class="form-control glass-input" placeholder="es. registro (opzionale)" />
+            </div>
+            <div class="mb-3">
+                <label>Classe di destinazione:</label>
+                <select @bind="ClasseId" class="form-control glass-input">
+                    <option value="">-- Seleziona Classe --</option>
+                    @foreach (var classe in Classi)
+                    {
+                        <option value="@classe.Id">@classe.Corso.Nome @classe.Anno.Nome @classe.Sezione.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label>
+                    Inserisci ogni studente su una riga (Cognome Nome):
+                </label>
+                <textarea @bind="InputStudenti" class="form-control glass-input" rows="6" placeholder="es.
+Rossi Mario
+Bianchi Luca
+Verdi Anna"></textarea>
+            </div>
+            <button class="btn btn-primary elenco-studenti-btn" @onclick="GeneraStudenti" disabled="@( !PuoiGenerareStudenti )">
+                <i class="fas fa-users"></i> Genera Studenti
+            </button>
+            @if (!string.IsNullOrWhiteSpace(MessaggioErrore))
+            {
+                <div class="alert alert-danger mt-3">@MessaggioErrore</div>
+            }
+
+        </div>
+
+        @if (StudentiGenerati?.Any() == true)
+        {
+            <div class="glass-card p-4 mb-4">
+                <h4>Anteprima Studenti Generati</h4>
+                <ul class="list-group mb-3">
+                    @foreach (var studente in StudentiGenerati)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>@studente.Cognome @studente.Nome</span>
+                            <span class="badge bg-light text-dark" style="font-size:0.98em;">
+                                @studente.Email
+                            </span>
+                        </li>
+                    }
+                </ul>
+                <button class="btn btn-success elenco-studenti-btn" @onclick="SalvaStudenti">
+                    <i class="fas fa-save"></i> Salva Studenti
+                </button>
+                @if (MessaggioSalvataggio != null)
+                {
+                    <div class="alert alert-info mt-2">@MessaggioSalvataggio</div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+
+    private string? InputStudenti { get; set; }
+    private string? DominioEmail { get; set; }
+    private string? PrefissoEmail { get; set; }
+    private string? MessaggioErrore { get; set; }
+    private List<StudentePreview> StudentiGenerati { get; set; } = new();
+    private string? MessaggioSalvataggio { get; set; }
+    private int? ClasseId { get; set; }
+    private List<Classe> Classi { get; set; } = new();
+
+    private string EsempioUsername => "rossi.mario";
+    private string GetEsempioEmail()
+    {
+        if (!string.IsNullOrWhiteSpace(PrefissoEmail))
+            return $"studente.{EsempioUsername}@{PrefissoEmail}.{DominioEmail ?? "scuola.it"}";
+        else
+            return $"studente.{EsempioUsername}@{DominioEmail ?? "scuola.it"}";
+    }
+
+    protected override void OnInitialized()
+    {
+        Classi = Db.Classi
+            .Include(c => c.Corso)
+            .Include(c => c.Anno)
+            .Include(c => c.Sezione)
+            .ToList();
+    }
+
+    private bool PuoiGenerareStudenti =>
+    !string.IsNullOrWhiteSpace(DominioEmail)
+    && ClasseId != null
+    && !string.IsNullOrWhiteSpace(InputStudenti);
+
+    private void GeneraStudenti()
+    {
+        MessaggioSalvataggio = null;
+        MessaggioErrore = null;
+        StudentiGenerati = new List<StudentePreview>();
+
+        if (string.IsNullOrWhiteSpace(DominioEmail))
+        {
+            MessaggioErrore = "Deve esserci per forza il dominio email.";
+            return;
+        }
+
+        if (ClasseId == null)
+        {
+            MessaggioErrore = "Devi selezionare una classe.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(InputStudenti))
+        {
+            MessaggioErrore = "Devi inserire almeno un cognome e nome per generare studenti.";
+            return;
+        }
+
+        var righe = InputStudenti
+            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var riga in righe)
+        {
+            var tokens = riga.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length < 2)
+                continue;
+
+            var cognome = tokens[0].Trim();
+            var nome = string.Join(" ", tokens.Skip(1)).Trim();
+            var username = $"studente.{cognome.ToLowerInvariant()}.{nome.ToLowerInvariant().Replace(" ", "")}";
+
+            string email;
+            if (!string.IsNullOrWhiteSpace(PrefissoEmail))
+                email = $"{username}@{PrefissoEmail}.{DominioEmail}";
+            else
+                email = $"{username}@{DominioEmail}";
+            StudentiGenerati.Add(new StudentePreview
+                {
+                    Cognome = cognome,
+                    Nome = nome,
+                    Username = username,
+                    Email = email
+                });
+        }
+
+        if (!StudentiGenerati.Any())
+        {
+            MessaggioErrore = "Devi inserire almeno un cognome e nome per generare studenti.";
+        }
+    }
+
+    private async Task SalvaStudenti()
+    {
+        if (StudentiGenerati == null || !StudentiGenerati.Any() || ClasseId == null)
+            return;
+
+        int salvati = 0;
+        foreach (var s in StudentiGenerati)
+        {
+            if (Db.Utenti.Any(u => u.Username == s.Username || u.Email == s.Email))
+                continue;
+
+            var utente = new Utente
+                {
+                    Username = s.Username ?? string.Empty,
+                    Email = s.Email ?? string.Empty,
+                    PasswordHash = BCrypt.HashPassword("changeme"),
+                    Ruolo = RuoloUtente.Studente,
+                    Attivo = true,
+                    DataCreazione = DateTime.UtcNow
+                };
+
+            var profilo = new Profilo
+                {
+                    Nome = s.Nome ?? string.Empty,
+                    Cognome = s.Cognome ?? string.Empty,
+                    Utente = utente,
+                    DataCreazione = DateTime.UtcNow,
+                    DataNascita = DateTime.UtcNow, 
+                    CodiceFiscale = $"CFIMPORT{Guid.NewGuid().ToString("N")[..8]}",
+                    Indirizzo = string.Empty,
+                    Telefono = string.Empty,
+                    InfoAggiuntive = string.Empty
+                };
+
+
+            utente.Profilo = profilo;
+
+            var studente = new Studente
+                {
+                    Utente = utente,
+                    ClasseId = ClasseId.Value
+                };
+
+            Db.Utenti.Add(utente);
+            Db.Profili.Add(profilo);
+            Db.Studenti.Add(studente);
+
+            salvati++;
+        }
+
+        await Db.SaveChangesAsync();
+
+        MessaggioSalvataggio = $"Salvati {salvati} studenti!";
+        StudentiGenerati.Clear();
+        InputStudenti = string.Empty;
+
+        TornaIndietro();
+    }
+
+    private void TornaIndietro()
+    {
+        Navigation.NavigateTo("/studenti");
+    }
+
+    public class StudentePreview
+    {
+        public string? Cognome { get; set; }
+        public string? Nome { get; set; }
+        public string? Username { get; set; }
+        public string? Email { get; set; }
+    }
+}

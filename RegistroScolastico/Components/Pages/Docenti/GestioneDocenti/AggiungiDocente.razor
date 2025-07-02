@@ -1,0 +1,242 @@
+﻿@page "/docenti/crea"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Aggiungi Docente</PageTitle>
+
+<div class="aggiungi-docente-mainbox animate-fadein">
+    <div class="aggiungi-docente-container">
+        <div class="aggiungi-docente-header">
+            <h2>
+                <i class="fas fa-user-plus me-2"></i>
+                Aggiungi Docente
+            </h2>
+            <button class="btn btn-secondary aggiungi-docente-back-btn" @onclick="GoBack" title="Torna alla gestione">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ErroreGenerale))
+        {
+            <div class="alert alert-danger glass-card animate-fadein">@ErroreGenerale</div>
+        }
+
+        <EditForm Model="@DocenteModel" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="glass-card p-4 mt-3">
+                <h5 class="mb-3 text-primary"><i class="fas fa-id-card me-2"></i> Dati Utente</h5>
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Username</label>
+                        <InputText class="form-control glass-input" @bind-Value="DocenteModel.Utente.Username" />
+                        <ValidationMessage For="@(() => DocenteModel.Utente.Username)" />
+                        @if (ErroriCampo.ContainsKey("Username"))
+                        {
+                            <div class="text-danger">@ErroriCampo["Username"]</div>
+                        }
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Email</label>
+                        <InputText class="form-control glass-input" @bind-Value="DocenteModel.Utente.Email" />
+                        <ValidationMessage For="@(() => DocenteModel.Utente.Email)" />
+                        @if (ErroriCampo.ContainsKey("Email"))
+                        {
+                            <div class="text-danger">@ErroriCampo["Email"]</div>
+                        }
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Password</label>
+                        <InputText class="form-control glass-input" @bind-Value="Password" type="password" />
+                        <ValidationMessage For="@(() => Password)" />
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Ruolo</label>
+                        <InputSelect class="form-select glass-input" @bind-Value="DocenteModel.Utente.Ruolo">
+                            <option value="@RuoloUtente.Docente">Docente</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <h5 class="mb-3 mt-4 text-primary"><i class="fas fa-user me-2"></i> Profilo</h5>
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Nome</label>
+                        <InputText class="form-control glass-input" @bind-Value="DocenteModel.Utente.Profilo.Nome" />
+                        <ValidationMessage For="@(() => DocenteModel.Utente.Profilo.Nome)" />
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Cognome</label>
+                        <InputText class="form-control glass-input" @bind-Value="DocenteModel.Utente.Profilo.Cognome" />
+                        <ValidationMessage For="@(() => DocenteModel.Utente.Profilo.Cognome)" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Codice Fiscale</label>
+                        <InputText class="form-control glass-input" @bind-Value="DocenteModel.Utente.Profilo.CodiceFiscale" />
+                        <ValidationMessage For="@(() => DocenteModel.Utente.Profilo.CodiceFiscale)" />
+                        @if (ErroriCampo.ContainsKey("CodiceFiscale"))
+                        {
+                            <div class="text-danger">@ErroriCampo["CodiceFiscale"]</div>
+                        }
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Data di Nascita</label>
+                        <InputDate class="form-control glass-input" @bind-Value="DocenteModel.Utente.Profilo.DataNascita" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Indirizzo</label>
+                        <InputText class="form-control glass-input" @bind-Value="DocenteModel.Utente.Profilo.Indirizzo" />
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label class="form-label fw-semibold">Telefono</label>
+                        <InputText class="form-control glass-input" @bind-Value="DocenteModel.Utente.Profilo.Telefono" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Info Aggiuntive</label>
+                    <InputTextArea class="form-control glass-input" @bind-Value="DocenteModel.Utente.Profilo.InfoAggiuntive" />
+                </div>
+
+                <h5 class="mb-3 mt-4 text-primary"><i class="fas fa-book-open me-2"></i> Materie Insegnate</h5>
+                <div class="materie-list-glass mb-3">
+                    <div class="row">
+                        @foreach (var materia in Materie)
+                        {
+                            <div class="col-12 col-md-6 col-lg-4 mb-2">
+                                <label class="materia-checkbox glass-list-item d-flex align-items-center">
+                                    <input class="form-check-input me-2"
+                                           type="checkbox"
+                                           @bind="materieSelections[materia.Id]" />
+                                    <span>
+                                        <i class="fas fa-book text-primary me-1"></i>
+                                        @materia.Nome
+                                    </span>
+                                </label>
+                            </div>
+                        }
+                    </div>
+                    <small class="text-muted">Puoi lasciare vuoto e assegnare le materie più tardi.</small>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-secondary glass-btn" @onclick="GoBack">
+                        <i class="fas fa-arrow-left"></i> Annulla
+                    </button>
+                    <button type="submit" class="btn btn-primary glass-btn">
+                        <i class="fas fa-save"></i> Salva
+                    </button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    private Docente DocenteModel { get; set; } = new Docente
+        {
+            Utente = new Utente
+            {
+                Profilo = new Profilo(),
+                Username = string.Empty,
+                Ruolo = RuoloUtente.Docente
+            }
+        };
+    private string Password { get; set; } = string.Empty;
+    private List<Materia> Materie { get; set; } = new();
+    private Dictionary<int, bool> materieSelections = new();
+    private Dictionary<string, string> ErroriCampo { get; set; } = new();
+    private string? ErroreGenerale { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Materie = await DbContext.Materie.OrderBy(m => m.Nome).ToListAsync();
+        foreach (var materia in Materie)
+        {
+            materieSelections[materia.Id] = false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        ErroriCampo.Clear();
+        ErroreGenerale = null;
+
+        try
+        {
+            // Hash della password (da sostituire con un vero hash in produzione)
+            DocenteModel.Utente.PasswordHash = Password;
+            DocenteModel.Utente.Ruolo = RuoloUtente.Docente;
+
+            // Aggiungi l'utente e il profilo
+            DbContext.Utenti.Add(DocenteModel.Utente);
+            await DbContext.SaveChangesAsync();
+
+            // Associa l'UtenteId al Docente
+            DocenteModel.UtenteId = DocenteModel.Utente.Id;
+
+            // Aggiungi il docente
+            DbContext.Docenti.Add(DocenteModel);
+            await DbContext.SaveChangesAsync();
+
+            // Associa le materie selezionate tramite MateriaClasse (senza classe specifica)
+            var materieAssociate = materieSelections
+                .Where(kv => kv.Value)
+                .Select(kv => new MateriaClasse
+                    {
+                        MateriaId = kv.Key,
+                        DocenteId = DocenteModel.UtenteId,
+                        Peso = 1 // valore di default, puoi modificarlo
+                    }).ToList();
+
+            if (materieAssociate.Any())
+            {
+                DbContext.MaterieClassi.AddRange(materieAssociate);
+                await DbContext.SaveChangesAsync();
+            }
+
+            NavigationManager.NavigateTo("/docenti");
+        }
+        catch (DbUpdateException ex)
+        {
+            var msg = ex.InnerException?.Message ?? ex.Message;
+
+            if (msg.Contains("IX_Profili_CodiceFiscale", StringComparison.OrdinalIgnoreCase))
+            {
+                ErroriCampo["CodiceFiscale"] = "Codice fiscale già presente.";
+            }
+            else if (msg.Contains("IX_Utenti_Email", StringComparison.OrdinalIgnoreCase))
+            {
+                ErroriCampo["Email"] = "Email già presente.";
+            }
+            else if (msg.Contains("IX_Utenti_Username", StringComparison.OrdinalIgnoreCase))
+            {
+                ErroriCampo["Username"] = "Username già presente.";
+            }
+            else
+            {
+                ErroreGenerale = "Errore durante il salvataggio: " + ex.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErroreGenerale = "Errore inatteso: " + ex.Message;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/docenti");
+    }
+}

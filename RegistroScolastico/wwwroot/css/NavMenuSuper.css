@@ -1,0 +1,311 @@
+﻿/* --- Background Gradients per sezione --- */
+.bg-home {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+}
+
+.bg-studenti {
+    background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+}
+
+.bg-docenti {
+    background: linear-gradient(135deg, #ff512f 0%, #dd2476 100%);
+}
+
+.bg-classi {
+    background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+}
+
+.bg-gestione {
+    background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+}
+
+.bg-impostazioni {
+    background: linear-gradient(135deg, #232526 0%, #414345 100%);
+}
+
+.bg-calendario {
+    background: linear-gradient(135deg, #fc5c7d 0%, #6a82fb 100%);
+}
+
+.bg-default {
+    background: linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%);
+}
+
+/* --- Glassmorphism Content Area --- */
+.glassmorphism {
+    background: rgba(255,255,255,0.15);
+    box-shadow: 0 8px 32px 0 rgba(31,38,135,0.37);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.18);
+    margin: 2rem;
+    padding: 2rem;
+    min-height: 80vh;
+    transition: background 0.5s;
+}
+
+/* --- NavMenu Super --- */
+.navmenu-super {
+    width: 270px;
+    min-height: 100vh;
+    background: rgba(30, 34, 90, 0.95);
+    box-shadow: 2px 0 24px 0 rgba(0,0,0,0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 2rem;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 100;
+}
+
+.navmenu-logo-super {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2.5rem;
+    font-size: 2.2rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    user-select: none;
+    gap: 0.7rem;
+}
+
+.navmenu-logo-icon-super {
+    font-size: 2.5rem;
+    filter: drop-shadow(0 0 8px #fff176);
+}
+
+.rainbow-text {
+    background: linear-gradient(90deg, #ff512f, #f7971e, #43cea2, #185a9d, #fc5c7d, #6a82fb, #ff512f);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: rainbow 3s ease-in-out infinite;
+}
+
+@keyframes rainbow {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.navmenu-logo-text-super {
+    font-size: 1.3rem;
+    color: #fff;
+    letter-spacing: 1.5px;
+    text-shadow: 0 2px 8px #0006;
+}
+
+.navmenu-links-super {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    flex: 1;
+}
+
+    .navmenu-links-super li {
+        margin-bottom: 1.2rem;
+        width: 100%;
+    }
+
+.nav-link-super {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #e0e0e0;
+    font-size: 1.1rem;
+    padding: 0.9rem 2rem 0.9rem 2.5rem;
+    border-radius: 2rem 0 0 2rem;
+    text-decoration: none;
+    position: relative;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+    .nav-link-super i {
+        font-size: 1.3rem;
+        min-width: 24px;
+        text-align: center;
+    }
+
+    .nav-link-super:hover, .nav-link-super.active-super {
+        background: linear-gradient(90deg, #43cea2 0%, #185a9d 100%);
+        color: #fff;
+        box-shadow: 2px 4px 16px 0 rgba(67,206,162,0.12);
+        text-shadow: 0 2px 8px #43cea2aa;
+    }
+
+    .nav-link-super .navmenu-indicator-super {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #fff176;
+        border-radius: 50%;
+        margin-left: auto;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .nav-link-super.active-super .navmenu-indicator-super {
+        opacity: 1;
+    }
+
+.navmenu-badge-super {
+    background: #ff512f;
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: bold;
+    border-radius: 12px;
+    padding: 0.2rem 0.7rem;
+    margin-left: 0.7rem;
+    box-shadow: 0 2px 8px #ff512f55;
+    animation: badge-pop 1s infinite alternate;
+}
+
+@keyframes badge-pop {
+    0% {
+        transform: scale(1);
+    }
+
+    100% {
+        transform: scale(1.15);
+    }
+}
+
+.pulse-badge {
+    animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 #ff512f55;
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px #ff512f00;
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 #ff512f00;
+    }
+}
+
+.navmenu-footer-super {
+    margin-bottom: 2rem;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.logout-link-super {
+    color: #fff;
+    background: linear-gradient(90deg, #ff512f 0%, #dd2476 100%);
+    padding: 0.7rem 2.2rem;
+    border-radius: 2rem;
+    font-weight: bold;
+    font-size: 1.1rem;
+    text-decoration: none;
+    box-shadow: 0 2px 8px #dd247655;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+    .logout-link-super:hover {
+        background: linear-gradient(90deg, #dd2476 0%, #ff512f 100%);
+        color: #fff176;
+        box-shadow: 0 4px 16px #ff512f55;
+    }
+
+/* --- Animazioni --- */
+.animate-pop {
+    animation: pop-in 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+}
+
+@keyframes pop-in {
+    0% {
+        transform: scale(0.7) rotate(-8deg);
+        opacity: 0;
+    }
+
+    80% {
+        transform: scale(1.1) rotate(2deg);
+    }
+
+    100% {
+        transform: scale(1) rotate(0);
+        opacity: 1;
+    }
+}
+
+.animate-slidein {
+    animation: slidein 0.8s cubic-bezier(.68,-0.55,.27,1.55);
+}
+
+@keyframes slidein {
+    0% {
+        transform: translateY(-40px);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* --- Neon Text Effect --- */
+.neon-text {
+    color: #fff;
+    text-shadow: 0 0 5px #43cea2, 0 0 10px #43cea2, 0 0 20px #43cea2, 0 0 40px #185a9d;
+    letter-spacing: 2px;
+    font-weight: bold;
+    font-size: 2.1rem;
+}
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+    .navmenu-super {
+        width: 70px;
+        padding-top: 1rem;
+    }
+
+    .navmenu-logo-super, .navmenu-logo-text-super {
+        display: none;
+    }
+
+    .nav-link-super span:not(.navmenu-badge-super) {
+        display: none;
+    }
+
+    .nav-link-super {
+        padding: 0.9rem 0.7rem;
+        justify-content: center;
+    }
+
+    .logout-link-super span {
+        display: none;
+    }
+
+    .logout-link-super {
+        padding: 0.7rem 0.7rem;
+    }
+
+    .glassmorphism {
+        margin: 1rem;
+        padding: 1rem;
+    }
+}

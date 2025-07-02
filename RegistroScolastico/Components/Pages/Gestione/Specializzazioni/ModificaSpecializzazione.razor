@@ -1,0 +1,126 @@
+﻿@page "/specializzazioni/modifica/{Id:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Modifica Specializzazione</PageTitle>
+
+<div class="modifica-specializzazione-mainbox animate-fadein">
+    <div class="modifica-specializzazione-header">
+        <h2>
+            <i class="fas fa-graduation-cap me-2"></i>
+            Modifica Specializzazione
+        </h2>
+        <div class="modifica-specializzazione-actions">
+            <button class="btn btn-secondary glass-btn" @onclick="GoBack">
+                <i class="fas fa-arrow-left me-1"></i> Torna indietro
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="modifica-specializzazione-loader">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Caricamento...</span>
+            </div>
+            <span class="ms-2">Caricamento dati...</span>
+        </div>
+    }
+    else if (Specializzazione == null)
+    {
+        <div class="alert alert-danger glass-card mt-4">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Specializzazione non trovata.
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") glass-card animate-fadein mt-3">
+                @statusMessage
+            </div>
+        }
+
+        <div class="glass-card modifica-specializzazione-card p-4">
+            <EditForm Model="@Specializzazione" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-4">
+                    <label for="nome" class="form-label fw-semibold text-primary">
+                        <i class="fas fa-graduation-cap me-1"></i> Nome Specializzazione
+                    </label>
+                    <InputText id="nome" class="form-control glass-input" @bind-Value="Specializzazione.Nome" maxlength="100" autocomplete="off" />
+                    <ValidationMessage For="@(() => Specializzazione.Nome)" />
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-secondary glass-btn" @onclick="GoBack">
+                        <i class="fas fa-arrow-left"></i> Annulla
+                    </button>
+                    <button type="submit" class="btn btn-primary glass-btn">
+                        <i class="fas fa-save"></i> Salva
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    }
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Corso? Specializzazione { get; set; }
+    private bool isLoading = true;
+    private string statusMessage = string.Empty;
+    private bool isError = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Specializzazione = await DbContext.Corsi.FirstOrDefaultAsync(c => c.Id == Id);
+        isLoading = false;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        statusMessage = string.Empty;
+        isError = false;
+
+        try
+        {
+            // Verifica duplicati (escludendo se stesso)
+            var exists = await DbContext.Corsi
+                .AnyAsync(c => c.Nome == Specializzazione!.Nome && c.Id != Specializzazione.Id);
+            if (exists)
+            {
+                statusMessage = "Esiste già una specializzazione con questo nome.";
+                isError = true;
+                return;
+            }
+
+            DbContext.Corsi.Update(Specializzazione!);
+            await DbContext.SaveChangesAsync();
+            statusMessage = "Specializzazione aggiornata con successo!";
+            isError = false;
+            await Task.Delay(900);
+            NavigationManager.NavigateTo("/gestione");
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Errore durante il salvataggio: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/gestione");
+    }
+}

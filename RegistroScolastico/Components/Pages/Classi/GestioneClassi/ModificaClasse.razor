@@ -1,0 +1,547 @@
+﻿@page "/classi/modifica/{Id:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@inject ILogger<ModificaClasse> Logger
+@rendermode InteractiveServer
+
+<PageTitle>Modifica Classe @(Classe?.Anno?.Nome)@(Classe?.Sezione?.Nome)</PageTitle>
+
+<div class="modifica-classe-mainbox">
+    <div class="modifica-classe-container">
+        <div class="modifica-classe-header">
+            <h2>
+                <i class="fas fa-pen-ruler me-2"></i>
+                Modifica Classe
+            </h2>
+            <button class="btn btn-secondary modifica-classe-back-btn" @onclick="GoBack" title="Torna all'elenco classi">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="modifica-classe-loader">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Caricamento...</span>
+                </div>
+                <p class="ms-2">Caricamento dettagli classe...</p>
+            </div>
+        }
+        else if (Classe == null)
+        {
+            <div class="alert alert-danger glass-card" role="alert">
+                <h4 class="alert-heading"><i class="fas fa-triangle-exclamation me-2"></i>Errore!</h4>
+                <p>Classe non trovata con ID: <strong>@Id</strong></p>
+                <hr>
+                <p class="mb-0">Verifica l'ID o torna all'elenco delle classi.</p>
+                <button class="btn btn-secondary mt-2" @onclick="GoBack">
+                    <i class="fas fa-arrow-left"></i> Torna all'elenco
+                </button>
+            </div>
+        }
+        else
+        {
+            <EditForm Model="@Classe" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="glass-card dettagli-classe-info-card animate-fadein">
+                    <div class="card-body">
+                        <h3 class="card-title text-primary mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Info Classe
+                        </h3>
+                        <div class="classe-info-badges text-center mb-3">
+                            <div class="row justify-content-center gy-2">
+                                <div class="col-12 col-md-4 d-flex justify-content-center">
+                                    <span class="badge badge-anno badge-info-big">
+                                        <i class="fas fa-calendar-alt me-1"></i>
+                                        @Classe.Anno?.Nome
+                                    </span>
+                                </div>
+                                <div class="col-12 col-md-4 d-flex justify-content-center">
+                                    <span class="badge badge-sezione badge-info-big">
+                                        <i class="fas fa-th-large me-1"></i>
+                                        @Classe.Sezione?.Nome
+                                    </span>
+                                </div>
+                                <div class="col-12 col-md-4 d-flex justify-content-center">
+                                    <span class="badge badge-corso badge-info-big">
+                                        <i class="fas fa-graduation-cap me-1"></i>
+                                        @Classe.Corso?.Nome
+                                    </span>
+                                </div>
+                            </div>
+                            <hr class="classe-info-divider mt-4 mb-2" />
+                        </div>
+                        <div class="classe-info-extra text-center mb-4">
+                            <div class="row justify-content-center gy-2">
+                                <div class="col-12 col-md-6 d-flex justify-content-center align-items-center mb-2 mb-md-0">
+                                    <span class="classe-info-extra-item">
+                                        <strong>
+                                            <i class="fas fa-users-gear me-1"></i>Collegio Docenti:
+                                        </strong>
+                                        <span class="ms-1">@((Classe.CollegioDocenti?.Nome) ?? "Nessuno")</span>
+                                    </span>
+                                </div>
+                                <div class="col-12 col-md-6 d-flex justify-content-center align-items-center">
+                                    <span class="classe-info-extra-item">
+                                        <strong>
+                                            <i class="fas fa-calendar me-1"></i>Data Creazione:
+                                        </strong>
+                                        <span class="ms-1">@Classe.DataCreazione.ToShortDateString()</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <hr class="classe-info-divider mt-4 mb-2" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Materie: modifica -->
+                <div class="glass-card mt-4 animate-fadein">
+                    <div class="card-body">
+                        <h4 class="mb-3">
+                            <i class="fas fa-book-open me-2"></i>
+                            Materie Insegnate
+                        </h4>
+                        <div class="row">
+                            @foreach (var materia in MaterieDisponibili)
+                            {
+                                var checkboxId = $"materia_{materia.MateriaId}_docente_{materia.DocenteId}";
+                                <div class="col-md-4 mb-2">
+                                    <div class="form-check glass-check">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               id="@checkboxId"
+                                               @onchange="e => OnMateriaChecked(e, materia.MateriaId, materia.DocenteId)"
+                                               checked="@MaterieSelezionate.Any(x => x.MateriaId == materia.MateriaId && x.DocenteId == materia.DocenteId)" />
+                                        <label class="form-check-label" for="@checkboxId">
+                                            <span class="badge badge-materia me-1">
+                                                <i class="fas fa-book"></i>
+                                                &nbsp;&nbsp;&nbsp;@materia.MateriaNome
+                                            </span>
+                                            <span class="text-muted small">
+                                                <i class="fas fa-chalkboard-teacher ms-1"></i>
+                                                @materia.DocenteCognome @materia.DocenteNome
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </EditForm>
+
+            <!-- Studenti: rimozione -->
+            <div class="glass-card mt-4 animate-fadein">
+                <div class="card-body">
+                    <h4>
+                        <i class="fas fa-users me-2"></i>
+                        Studenti della Classe <span class="badge badge-studenti">@Classe.Studenti.Count</span>
+                    </h4>
+                    <ul class="list-group list-group-flush mt-3">
+                        @foreach (var studente in Classe.Studenti.OrderBy(s => s.Utente?.Profilo?.Cognome))
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center glass-list-item">
+                                <span>
+                                    <i class="fas fa-user-graduate text-primary me-2"></i>
+                                    <strong>@(studente.Utente?.Profilo?.Cognome) @(studente.Utente?.Profilo?.Nome)</strong>
+                                </span>
+                                <button class="btn btn-sm btn-outline-danger glass-btn"
+                                        title="Rimuovi studente"
+                                        @onclick="() => ConfermaRimozioneStudente(studente)">
+                                    <i class="fas fa-user-minus"></i>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Bottoni Salva/Elimina in fondo -->
+            <div class="card-footer d-flex justify-content-end gap-2" style="background:transparent; border:none;">
+                <button type="submit" class="btn btn-primary glass-btn" title="Salva Modifiche">
+                    <i class="fas fa-save"></i> Salva
+                </button>
+                <button type="button" class="btn btn-danger glass-btn" @onclick="ConfirmDelete" title="Elimina Classe">
+                    <i class="fas fa-trash"></i> Elimina
+                </button>
+            </div>
+        }
+
+        <!-- Conferma rimozione studente -->
+        @if (StudenteDaRimuovere != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content glass-card">
+                        <div class="modal-header bg-danger text-white">
+                            <h5><i class="fas fa-user-minus me-2"></i>Conferma Rimozione Studente</h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="AnnullaRimozioneStudente"></button>
+                        </div>
+                        <div class="modal-body">
+                            Vuoi davvero rimuovere <strong>@StudenteDaRimuovere.Utente?.Profilo?.Cognome @StudenteDaRimuovere.Utente?.Profilo?.Nome</strong> dalla classe?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary glass-btn" @onclick="AnnullaRimozioneStudente">Annulla</button>
+                            <button type="button" class="btn btn-danger glass-btn" @onclick="RimuoviStudente">Conferma Rimozione</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-backdrop fade show"></div>
+        }
+
+        <!-- Conferma eliminazione classe -->
+        @if (showDeleteConfirm)
+        {
+            <div class="modal fade show d-block" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content glass-card">
+                        <div class="modal-header bg-danger text-white">
+                            <h5><i class="fas fa-trash me-2"></i>Conferma Eliminazione</h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CancelDelete"></button>
+                        </div>
+                        <div class="modal-body">
+                            Sei sicuro di voler eliminare la classe:
+                            <strong>@Classe?.Anno.Nome @Classe?.Sezione.Nome (@Classe?.Corso?.Nome)</strong>?
+                            <br />
+                            <span class="text-danger small">Questa azione è irreversibile e disassocierà studenti e materie.</span>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary glass-btn" @onclick="CancelDelete">Annulla</button>
+                            <button type="button" class="btn btn-danger glass-btn" @onclick="DeleteClass">Conferma Eliminazione</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-backdrop fade show"></div>
+        }
+
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="mt-3 alert @(isError ? "alert-danger" : "alert-success") glass-card">
+                @statusMessage
+            </div>
+        }
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Classe? Classe { get; set; }
+    private bool isLoading = true;
+    private bool showDeleteConfirm = false;
+    private string statusMessage = string.Empty;
+    private bool isError;
+
+    private List<MateriaDocenteDisplay> MaterieDisponibili { get; set; } = new();
+    private List<MateriaSelezionata> MaterieSelezionate { get; set; } = new();
+    private List<CollegioDocenti> CollegiDocenti { get; set; } = new();
+    private Studente? StudenteDaRimuovere { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            await LoadClassDetails();
+            await LoadCollegiDocenti();
+            await CaricaMaterieDisponibili();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error initializing ModificaClasse component");
+            statusMessage = $"Errore durante l'inizializzazione: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadClassDetails()
+    {
+        try
+        {
+            Classe = await DbContext.Classi
+                .Include(c => c.AnnoFormativo)
+                .Include(c => c.Corso)
+                .Include(c => c.CollegioDocenti)
+                .Include(c => c.Anno)
+                .Include(c => c.Sezione)
+                .Include(c => c.Studenti)
+                    .ThenInclude(s => s.Utente)
+                        .ThenInclude(u => u.Profilo)
+                .Include(c => c.MaterieClassi)
+                    .ThenInclude(mc => mc.Materia)
+                .Include(c => c.MaterieClassi)
+                    .ThenInclude(mc => mc.Docente)
+                        .ThenInclude(d => d.Utente)
+                            .ThenInclude(u => u.Profilo)
+                .FirstOrDefaultAsync(c => c.Id == Id);
+
+            if (Classe != null)
+            {
+                MaterieSelezionate = Classe.MaterieClassi
+                    .Select(mc => new MateriaSelezionata { MateriaId = mc.MateriaId, DocenteId = mc.DocenteId })
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading class details");
+            statusMessage = $"Errore durante il caricamento della classe: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task LoadCollegiDocenti()
+    {
+        try
+        {
+            CollegiDocenti = await DbContext.CollegiDocenti.OrderBy(cd => cd.Nome).ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading CollegiDocenti");
+            statusMessage = $"Errore durante il caricamento dei CollegiDocenti: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task CaricaMaterieDisponibili()
+    {
+        try
+        {
+            List<MateriaClasse> materieClassi;
+
+            if (Classe?.CollegioDocentiId.HasValue == true && Classe.CollegioDocentiId.Value != 0)
+            {
+                var collegio = await DbContext.CollegiDocenti
+                    .Include(cd => cd.Docenti)
+                    .FirstOrDefaultAsync(cd => cd.Id == Classe.CollegioDocentiId.Value);
+
+                var docentiIds = collegio?.Docenti.Select(d => d.UtenteId).ToList() ?? new List<int>();
+
+                materieClassi = await DbContext.MaterieClassi
+                    .Include(mc => mc.Materia)
+                    .Include(mc => mc.Docente)
+                        .ThenInclude(d => d.Utente)
+                            .ThenInclude(u => u.Profilo)
+                    .Where(mc => mc.DocenteId.HasValue && docentiIds.Contains(mc.DocenteId.Value))
+                    .ToListAsync();
+            }
+            else
+            {
+                materieClassi = await DbContext.MaterieClassi
+                    .Include(mc => mc.Materia)
+                    .Include(mc => mc.Docente)
+                        .ThenInclude(d => d.Utente)
+                            .ThenInclude(u => u.Profilo)
+                    .ToListAsync();
+            }
+
+            MaterieDisponibili = materieClassi
+                .GroupBy(mc => new { mc.MateriaId, mc.DocenteId })
+                .Select(g => g.First())
+                .Select(mc => new MateriaDocenteDisplay
+                    {
+                        MateriaId = mc.MateriaId,
+                        MateriaNome = mc.Materia?.Nome ?? "N/A",
+                        DocenteId = mc.DocenteId,
+                        DocenteNome = mc.Docente?.Utente?.Profilo?.Nome ?? "N/A",
+                        DocenteCognome = mc.Docente?.Utente?.Profilo?.Cognome ?? "N/A"
+                    })
+                .OrderBy(md => md.MateriaNome)
+                .ThenBy(md => md.DocenteCognome)
+                .ThenBy(md => md.DocenteNome)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading available subjects");
+            statusMessage = $"Errore durante il caricamento delle materie disponibili: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task OnCollegioDocentiChangedAsync()
+    {
+        await CaricaMaterieDisponibili();
+        MaterieSelezionate = MaterieSelezionate
+            .Where(sel => MaterieDisponibili.Any(md => md.MateriaId == sel.MateriaId && md.DocenteId == sel.DocenteId))
+            .ToList();
+        StateHasChanged();
+    }
+
+    private void OnMateriaChecked(ChangeEventArgs e, int materiaId, int? docenteId)
+    {
+        var isChecked = e.Value is bool b && b;
+        if (!isChecked && e.Value is string s)
+            isChecked = s == "true" || s == "on";
+
+        var key = new MateriaSelezionata { MateriaId = materiaId, DocenteId = docenteId };
+
+        if (isChecked)
+        {
+            if (!MaterieSelezionate.Any(x => x.MateriaId == materiaId && x.DocenteId == docenteId))
+                MaterieSelezionate.Add(key);
+        }
+        else
+        {
+            var toRemove = MaterieSelezionate.FirstOrDefault(x => x.MateriaId == materiaId && x.DocenteId == docenteId);
+            if (toRemove != null)
+                MaterieSelezionate.Remove(toRemove);
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            statusMessage = string.Empty;
+            isError = false;
+
+            if (Classe == null)
+                return;
+
+            var materieAttuali = Classe.MaterieClassi.ToList();
+
+            // Rimuovi materie non più selezionate
+            foreach (var mc in materieAttuali)
+            {
+                if (!MaterieSelezionate.Any(x => x.MateriaId == mc.MateriaId && x.DocenteId == mc.DocenteId))
+                    DbContext.MaterieClassi.Remove(mc);
+            }
+
+            // Aggiungi nuove materie selezionate
+            foreach (var sel in MaterieSelezionate)
+            {
+                if (!materieAttuali.Any(x => x.MateriaId == sel.MateriaId && x.DocenteId == sel.DocenteId))
+                {
+                    DbContext.MaterieClassi.Add(new MateriaClasse
+                        {
+                            ClasseId = Classe.Id,
+                            MateriaId = sel.MateriaId,
+                            DocenteId = sel.DocenteId // può essere null
+                        });
+                }
+            }
+
+            await DbContext.SaveChangesAsync();
+            statusMessage = "Modifiche salvate con successo!";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving class modifications");
+            statusMessage = $"Errore durante il salvataggio: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void ConfermaRimozioneStudente(Studente studente)
+    {
+        StudenteDaRimuovere = studente;
+    }
+
+    private void AnnullaRimozioneStudente()
+    {
+        StudenteDaRimuovere = null;
+    }
+
+    private async Task RimuoviStudente()
+    {
+        if (StudenteDaRimuovere != null && Classe != null)
+        {
+            try
+            {
+                Classe.Studenti.Remove(StudenteDaRimuovere);
+                DbContext.Studenti.Remove(StudenteDaRimuovere);
+                await DbContext.SaveChangesAsync();
+                statusMessage = "Studente rimosso con successo!";
+                StudenteDaRimuovere = null;
+                await LoadClassDetails();
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error removing student");
+                statusMessage = $"Errore durante la rimozione dello studente: {ex.Message}";
+                isError = true;
+            }
+        }
+    }
+
+    private void ConfirmDelete()
+    {
+        showDeleteConfirm = true;
+        statusMessage = string.Empty;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirm = false;
+    }
+
+    private async Task DeleteClass()
+    {
+        try
+        {
+            if (Classe != null)
+            {
+                DbContext.Classi.Remove(Classe);
+                await DbContext.SaveChangesAsync();
+                statusMessage = "Classe eliminata con successo!";
+                isError = false;
+                Navigation.NavigateTo("/classi", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting class");
+            statusMessage = $"Errore durante l'eliminazione della classe: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/classi");
+    }
+
+    private class MateriaDocenteDisplay
+    {
+        public int MateriaId { get; set; }
+        public string MateriaNome { get; set; } = string.Empty;
+        public int? DocenteId { get; set; }
+        public string DocenteNome { get; set; } = string.Empty;
+        public string DocenteCognome { get; set; } = string.Empty;
+    }
+
+    private class MateriaSelezionata
+    {
+        public int MateriaId { get; set; }
+        public int? DocenteId { get; set; }
+        public override bool Equals(object? obj)
+        {
+            return obj is MateriaSelezionata other &&
+                   MateriaId == other.MateriaId &&
+                   DocenteId == other.DocenteId;
+        }
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(MateriaId, DocenteId);
+        }
+    }
+}

@@ -1,0 +1,276 @@
+﻿@page "/anniformativi/crea"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Aggiungi Anno Formativo</PageTitle>
+
+<div class="aggiungi-anno-mainbox animate-fadein">
+    <div class="aggiungi-anno-container">
+        <div class="aggiungi-anno-header">
+            <h2>
+                <i class="fas fa-calendar-plus me-2"></i>
+                Aggiungi Anno Formativo
+            </h2>
+        </div>
+
+        <EditForm Model="@AnnoFormativo" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="glass-card p-4 mt-3">
+                <div class="mb-4">
+                    <label for="nome" class="form-label fw-semibold text-primary">
+                        <i class="fas fa-calendar-alt me-1"></i> Anno Formativo
+                    </label>
+                    <InputSelect id="nome" class="form-select glass-input"
+                                 Value="@AnnoFormativo.Nome"
+                                 ValueChanged="@((string value) => OnAnnoFormativoChanged(value))"
+                                 ValueExpression="@(() => AnnoFormativo.Nome)">
+                        <option value="">Seleziona un anno formativo</option>
+                        @foreach (var anno in AnniFormativiDisponibili)
+                        {
+                            <option value="@anno">@anno</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => AnnoFormativo.Nome)" />
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label class="form-label fw-semibold text-primary">
+                            <i class="fas fa-calendar-day me-1"></i> Data Inizio
+                        </label>
+                        <div class="input-group">
+                            <InputNumber class="form-control glass-input" style="max-width:70px" @bind-Value="GiornoInizio" min="1" max="31" placeholder="GG" disabled="@(!AnnoSelezionato)" />
+                            <span class="input-group-text">/</span>
+                            <InputNumber class="form-control glass-input" style="max-width:70px" @bind-Value="MeseInizio" min="1" max="12" placeholder="MM" disabled="@(!AnnoSelezionato)" />
+                            <span class="input-group-text">
+                                @(AnnoInizio > 0 ? AnnoInizio.ToString() : "----")
+                            </span>
+                        </div>
+                        @if (GiornoInizio < 1 || GiornoInizio > 31)
+                        {
+                            <div class="text-danger small">Il giorno deve essere compreso tra 1 e 31</div>
+                        }
+                        @if (MeseInizio < 1 || MeseInizio > 12)
+                        {
+                            <div class="text-danger small">Il mese deve essere compreso tra 1 e 12</div>
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold text-primary">
+                            <i class="fas fa-calendar-check me-1"></i> Data Fine
+                        </label>
+                        <div class="input-group">
+                            <InputNumber class="form-control glass-input" style="max-width:70px" @bind-Value="GiornoFine" min="1" max="31" placeholder="GG" disabled="@(!AnnoSelezionato)" />
+                            <span class="input-group-text">/</span>
+                            <InputNumber class="form-control glass-input" style="max-width:70px" @bind-Value="MeseFine" min="1" max="12" placeholder="MM" disabled="@(!AnnoSelezionato)" />
+                            <span class="input-group-text">
+                                @(AnnoFine > 0 ? AnnoFine.ToString() : "----")
+                            </span>
+                        </div>
+                        @if (GiornoFine < 1 || GiornoFine > 31)
+                        {
+                            <div class="text-danger small">Il giorno deve essere compreso tra 1 e 31</div>
+                        }
+                        @if (MeseFine < 1 || MeseFine > 12)
+                        {
+                            <div class="text-danger small">Il mese deve essere compreso tra 1 e 12</div>
+                        }
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        @ErrorMessage
+                    </div>
+                }
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-secondary glass-btn" @onclick="GoBack">
+                        <i class="fas fa-arrow-left"></i> Annulla
+                    </button>
+                    <button type="submit" class="btn btn-primary glass-btn" disabled="@(!IsFormValid())">
+                        <i class="fas fa-save"></i> Salva
+                    </button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    private AnnoFormativo AnnoFormativo { get; set; } = new AnnoFormativo();
+    private List<string> AnniFormativiDisponibili { get; set; } = new List<string>();
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    // Campi per giorno/mese con valori di default
+    private int GiornoInizio { get; set; } = 1;
+    private int MeseInizio { get; set; } = 9; // Settembre
+    private int GiornoFine { get; set; } = 30;
+    private int MeseFine { get; set; } = 6; // Giugno
+
+    private int AnnoInizio { get; set; }
+    private int AnnoFine { get; set; }
+    private bool AnnoSelezionato => !string.IsNullOrEmpty(AnnoFormativo.Nome);
+
+    protected override async Task OnInitializedAsync()
+    {
+        AnniFormativiDisponibili = GenerateAnniFormativi();
+
+        // Verifica se esistono già anni formativi duplicati
+        var anniEsistenti = await DbContext.AnniFormativi
+            .Select(a => a.Nome)
+            .ToListAsync();
+
+        AnniFormativiDisponibili = AnniFormativiDisponibili
+            .Where(a => !anniEsistenti.Contains(a))
+            .ToList();
+    }
+
+    private List<string> GenerateAnniFormativi()
+    {
+        var anni = new List<string>();
+        int currentYear = DateTime.Now.Year;
+        int startYear = Math.Max(2020, currentYear - 5);
+        int endYear = currentYear + 10;
+
+        for (int year = startYear; year <= endYear; year++)
+        {
+            anni.Add($"{year}/{year + 1}");
+        }
+
+        return anni.OrderBy(a => a).ToList();
+    }
+
+    private void OnAnnoFormativoChanged(string value)
+    {
+        ErrorMessage = string.Empty;
+        AnnoFormativo.Nome = value ?? "";
+
+        if (!string.IsNullOrEmpty(AnnoFormativo.Nome) && AnnoFormativo.Nome.Contains("/"))
+        {
+            var parts = AnnoFormativo.Nome.Split('/');
+            if (parts.Length == 2 &&
+                int.TryParse(parts[0], out int annoInizio) &&
+                int.TryParse(parts[1], out int annoFine))
+            {
+                AnnoInizio = annoInizio;
+                AnnoFine = annoFine;
+            }
+            else
+            {
+                AnnoInizio = 0;
+                AnnoFine = 0;
+            }
+        }
+        else
+        {
+            AnnoInizio = 0;
+            AnnoFine = 0;
+        }
+
+        StateHasChanged();
+    }
+
+    private bool IsFormValid()
+    {
+        return AnnoSelezionato &&
+               AnnoInizio > 0 &&
+               AnnoFine > 0 &&
+               GiornoInizio >= 1 && GiornoInizio <= 31 &&
+               MeseInizio >= 1 && MeseInizio <= 12 &&
+               GiornoFine >= 1 && GiornoFine <= 31 &&
+               MeseFine >= 1 && MeseFine <= 12;
+    }
+
+    private bool IsValidDate(int year, int month, int day)
+    {
+        try
+        {
+            var date = new DateTime(year, month, day);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            // Validazione delle date
+            if (!IsValidDate(AnnoInizio, MeseInizio, GiornoInizio))
+            {
+                ErrorMessage = "La data di inizio non è valida.";
+                return;
+            }
+
+            if (!IsValidDate(AnnoFine, MeseFine, GiornoFine))
+            {
+                ErrorMessage = "La data di fine non è valida.";
+                return;
+            }
+
+            var dataInizio = new DateTime(AnnoInizio, MeseInizio, GiornoInizio);
+            var dataFine = new DateTime(AnnoFine, MeseFine, GiornoFine);
+
+            // Validazione logica delle date
+            if (dataInizio >= dataFine)
+            {
+                ErrorMessage = "La data di inizio deve essere precedente alla data di fine.";
+                return;
+            }
+
+            // Verifica duplicati
+            var esisteGia = await DbContext.AnniFormativi
+                .AnyAsync(a => a.Nome == AnnoFormativo.Nome);
+
+            if (esisteGia)
+            {
+                ErrorMessage = "Questo anno formativo esiste già.";
+                return;
+            }
+
+            // Verifica sovrapposizioni con altri anni formativi
+            var sovrapposizioni = await DbContext.AnniFormativi
+                .Where(a => (dataInizio <= a.DataFine && dataFine >= a.DataInizio))
+                .AnyAsync();
+
+            if (sovrapposizioni)
+            {
+                ErrorMessage = "Le date si sovrappongono con un altro anno formativo esistente.";
+                return;
+            }
+
+            // Salvataggio
+            AnnoFormativo.DataInizio = dataInizio;
+            AnnoFormativo.DataFine = dataFine;
+
+            DbContext.AnniFormativi.Add(AnnoFormativo);
+            await DbContext.SaveChangesAsync();
+
+            NavigationManager.NavigateTo("/gestione");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Errore durante il salvataggio: {ex.Message}";
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/gestione");
+    }
+}

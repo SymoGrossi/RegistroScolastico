@@ -1,0 +1,343 @@
+﻿@page "/classi/valutazioni/prova-situazionale/{ClasseId:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Prova Situazionale - @classe?.NomeVisualizzato</PageTitle>
+
+@if (classe == null)
+{
+        <div class="alert alert-info">Caricamento in corso...</div>
+}
+else
+{
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3>
+                <i class="fas fa-cogs me-2"></i> 
+                SCHEDA DI VALUTAZIONE - PROVA SITUAZIONALE: @classe.NomeVisualizzato
+            </h3>
+
+            <div>
+                <button class="btn @(editMode ? "btn-danger" : "btn-primary")" 
+                        @onclick="ToggleEditMode">
+                @(editMode ? "Annulla Modifica" : "Modifica Valutazioni")
+                </button>
+            @if (editMode)
+            {
+                        <button class="btn btn-success ms-2" @onclick="SalvaValutazioni">
+                            <i class="fas fa-save me-1"></i> Salva
+                        </button>
+            }
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm valutazioni-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="text-center align-middle">N.</th>
+                        <th rowspan="2" class="text-center align-middle">Compiti / Indicatori / Criteri</th>
+                        <th rowspan="2" class="text-center align-middle">Pesi</th>
+                        <th rowspan="2" class="text-center align-middle">Punteggio max<br>indicatori / criteri</th>
+                        <th rowspan="2" class="text-center align-middle">Medie</th>
+                    @foreach (var studente in studenti)
+                    {
+                                <th class="text-center">@studente.Utente.Profilo.NomeCompleto</th>
+                    }
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Riga Valutazioni Finali -->
+                    <tr class="table-primary">
+                        <td colspan="4" class="fw-bold">Valutazioni finali Prova Situazionale (da 0 a 100)</td>
+                        <td class="text-center fw-bold">@mediaTotale.ToString("0")</td>
+                    @foreach (var studente in studenti)
+                    {
+                                <td class="text-center fw-bold">@CalcolaTotaleStudente(studente).ToString("0")</td>
+                    }
+                    </tr>
+
+                @for (int compitoIndex = 0; compitoIndex < template.Compiti.Count; compitoIndex++)
+                {
+                    var compito = template.Compiti.ToList()[compitoIndex];
+                    var compitoNum = compitoIndex + 1;
+
+                            <!-- Riga Compito -->
+                            <tr class="table-info">
+                                <td class="text-center fw-bold">@compitoNum</td>
+                                <td class="fw-bold">@compito.Nome</td>
+                                <td class="text-center fw-bold">@(compito.PesoPercentuale.ToString("0.#"))%</td>
+                                <td class="text-center fw-bold">@compito.PunteggioMax.ToString("0")</td>
+                                <td class="text-center fw-bold">@CalcolaMediaCompito(compito).ToString("0")</td>
+                        @foreach (var studente in studenti)
+                        {
+                                        <td class="text-center fw-bold">@CalcolaPunteggioCompito(studente, compito).ToString("0")</td>
+                        }
+                            </tr>
+
+                            <!-- Righe Indicatori -->
+                    @for (int indicatoreIndex = 0; indicatoreIndex < compito.Indicatori.Count; indicatoreIndex++)
+                    {
+                        var indicatore = compito.Indicatori.ToList()[indicatoreIndex];
+                        var indicatoreNum = indicatoreIndex + 1;
+                                    <tr>
+                                        <td class="text-center">@compitoNum.@indicatoreNum</td>
+                                        <td>@indicatore.Nome</td>
+                                        <td></td>
+                                        <td class="text-center">@indicatore.PunteggioMax.ToString("0")</td>
+                                        <td class="text-center">@CalcolaMediaIndicatore(indicatore).ToString("0")</td>
+                            @foreach (var studente in studenti)
+                            {
+                                                <td class="text-center">
+                                    @if (editMode)
+                                    {
+                                                            <select class="form-select form-select-sm" 
+                                                                    @bind="GetValutazione(studente, indicatore).Livello">
+                                                                <option value="Nullo">Nullo</option>
+                                                                <option value="Base">Base</option>
+                                                                <option value="Intermedio">Intermedio</option>
+                                                                <option value="Avanzato">Avanzato</option>
+                                                            </select>
+                                    }
+                                    else
+                                    {
+                                                            <span class="badge @GetBadgeClass(GetValutazione(studente, indicatore).Livello)">
+                                            @GetValutazione(studente, indicatore).Livello
+                                                            </span>
+                                    }
+                                                </td>
+                            }
+                                    </tr>
+                    }
+                }
+                </tbody>
+                <tfoot class="table-secondary">
+                    <tr>
+                        <td colspan="2" class="fw-bold text-end">TOTALI</td>
+                        <td class="text-center fw-bold">@template.Compiti.Sum(c => c.PesoPercentuale).ToString("0.#")%</td>
+                        <td class="text-center fw-bold">@template.Compiti.Sum(c => c.PunteggioMax).ToString("0")</td>
+                        <td class="text-center fw-bold">@mediaTotale.ToString("0")</td>
+                    @foreach (var studente in studenti)
+                    {
+                                <td class="text-center fw-bold">@CalcolaTotaleStudente(studente).ToString("0")</td>
+                    }
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+}
+
+@code {
+    [Parameter] public int ClasseId { get; set; }
+
+    private Classe classe;
+    private List<Studente> studenti = new();
+    private ProvaSituazionaleTemplate template;
+    private List<ProvaSituazionaleValutazione> valutazioni = new();
+    private bool editMode = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CaricaDati();
+    }
+
+    private async Task CaricaDati()
+    {
+        // Carica la classe
+        classe = await DbContext.Classi
+            .Include(c => c.Anno)
+            .Include(c => c.Sezione)
+            .Include(c => c.Corso)
+            .FirstOrDefaultAsync(c => c.Id == ClasseId);
+
+        if (classe == null) return;
+
+        // Carica studenti della classe
+        studenti = await DbContext.Studenti
+            .Include(s => s.Utente)
+            .ThenInclude(u => u.Profilo)
+            .Where(s => s.ClasseId == ClasseId)
+            .OrderBy(s => s.Utente.Profilo.Cognome)
+            .ThenBy(s => s.Utente.Profilo.Nome)
+            .ToListAsync();
+
+        // Carica o crea template
+        template = await DbContext.ProveSituazionaliTemplate
+            .Include(t => t.Compiti)
+            .ThenInclude(c => c.Indicatori)
+            .FirstOrDefaultAsync(t => t.ClasseId == ClasseId);
+
+        if (template == null)
+        {
+            template = new ProvaSituazionaleTemplate
+                {
+                    ClasseId = ClasseId,
+                    Compiti = new List<ProvaSituazionaleCompitoTemplate>
+                {
+                    new ProvaSituazionaleCompitoTemplate
+                    {
+                        Nome = "QPR-MEC-30 Sviluppo del Concept Design",
+                        Peso = 0.1,
+                        Indicatori = new List<ProvaSituazionaleIndicatoreTemplate>
+                        {
+                            new() { Nome = "Corretta scelta del materiale", PunteggioMax = 30 },
+                            new() { Nome = "Stesura brief progettuale con lavorazioni diverse", PunteggioMax = 60 },
+                            new() { Nome = "Stesura di un planning completo", PunteggioMax = 10 }
+                        }
+                    },
+                    new ProvaSituazionaleCompitoTemplate
+                    {
+                        Nome = "QPR-MEC-03 Realizzazione di modelli tridimensionali con software CAD 3D",
+                        Peso = 0.2,
+                        Indicatori = new List<ProvaSituazionaleIndicatoreTemplate>
+                        {
+                            new() { Nome = "Realizzazione del file su Software di modellazione", PunteggioMax = 60 },
+                            new() { Nome = "Salvataggio del file nel formato visualizzabile CAD/CAM", PunteggioMax = 20 },
+                            new() { Nome = "Scelte delle lavorazioni", PunteggioMax = 10 },
+                            new() { Nome = "Salvataggio file estensione", PunteggioMax = 10 }
+                        }
+                    }
+                }
+                };
+            DbContext.ProveSituazionaliTemplate.Add(template);
+            await DbContext.SaveChangesAsync();
+        }
+
+        // Carica valutazioni esistenti
+        valutazioni = await DbContext.ProveSituazionaliValutazioni
+            .Include(v => v.Indicatore)
+            .Where(v => v.TemplateId == template.Id)
+            .ToListAsync();
+    }
+
+    private void ToggleEditMode()
+    {
+        editMode = !editMode;
+    }
+
+    private string GetBadgeClass(LivelloTecnico livello)
+    {
+        return livello switch
+        {
+            LivelloTecnico.Nullo => "bg-danger",
+            LivelloTecnico.Base => "bg-warning text-dark",
+            LivelloTecnico.Intermedio => "bg-info",
+            LivelloTecnico.Avanzato => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    private ProvaSituazionaleValutazione GetValutazione(Studente studente, ProvaSituazionaleIndicatoreTemplate indicatore)
+    {
+        var valutazione = valutazioni.FirstOrDefault(v =>
+            v.StudenteId == studente.UtenteId &&
+            v.IndicatoreId == indicatore.Id);
+
+        if (valutazione == null)
+        {
+            valutazione = new ProvaSituazionaleValutazione
+                {
+                    TemplateId = template.Id,
+                    StudenteId = studente.UtenteId,
+                    IndicatoreId = indicatore.Id,
+                    Indicatore = indicatore,
+                    CompitoId = indicatore.CompitoId,
+                    Livello = LivelloTecnico.Nullo
+                };
+
+            // Verifica che il CompitoId sia valido
+            if (!template.Compiti.Any(c => c.Id == indicatore.CompitoId))
+            {
+                throw new InvalidOperationException($"Il CompitoId '{indicatore.CompitoId}' non è valido.");
+            }
+
+            valutazioni.Add(valutazione);
+        }
+
+        return valutazione;
+    }
+
+    private double CalcolaPunteggioIndicatore(ProvaSituazionaleValutazione valutazione)
+    {
+        return (int)valutazione.Livello / 100.0 * valutazione.Indicatore.PunteggioMax;
+    }
+
+    private double CalcolaPunteggioCompito(Studente studente, ProvaSituazionaleCompitoTemplate compito)
+    {
+        double punteggio = 0;
+        foreach (var indicatore in compito.Indicatori)
+        {
+            var valutazione = GetValutazione(studente, indicatore);
+            punteggio += CalcolaPunteggioIndicatore(valutazione);
+        }
+        return (punteggio / compito.PunteggioMax) * 100 * compito.Peso;
+    }
+
+    private double CalcolaTotaleStudente(Studente studente)
+    {
+        double totale = 0;
+        foreach (var compito in template.Compiti)
+        {
+            totale += CalcolaPunteggioCompito(studente, compito);
+        }
+        return totale;
+    }
+
+    private double CalcolaMediaIndicatore(ProvaSituazionaleIndicatoreTemplate indicatore)
+    {
+        if (studenti.Count == 0) return 0;
+
+        double somma = 0;
+        foreach (var studente in studenti)
+        {
+            var valutazione = GetValutazione(studente, indicatore);
+            somma += CalcolaPunteggioIndicatore(valutazione);
+        }
+        return somma / studenti.Count;
+    }
+
+    private double CalcolaMediaCompito(ProvaSituazionaleCompitoTemplate compito)
+    {
+        if (studenti.Count == 0) return 0;
+        return studenti.Average(s => CalcolaPunteggioCompito(s, compito));
+    }
+
+    private double mediaTotale => studenti.Count == 0 ? 0 : studenti.Average(CalcolaTotaleStudente);
+
+    private async Task SalvaValutazioni()
+    {
+        try
+        {
+            foreach (var valutazione in valutazioni)
+            {
+                // Verifica se la valutazione esiste già nel database
+                var valutazioneEsistente = await DbContext.ProveSituazionaliValutazioni
+                    .FirstOrDefaultAsync(v => v.StudenteId == valutazione.StudenteId
+                                              && v.CompitoId == valutazione.CompitoId);
+
+                if (valutazioneEsistente == null)
+                {
+                    // Aggiungi solo se non esiste
+                    DbContext.ProveSituazionaliValutazioni.Add(valutazione);
+                }
+                else
+                {
+                    // Aggiorna la valutazione esistente
+                    valutazioneEsistente.Livello = valutazione.Livello;
+                    DbContext.Entry(valutazioneEsistente).State = EntityState.Modified;
+                }
+            }
+
+            await DbContext.SaveChangesAsync();
+            editMode = false;
+            StateHasChanged();
+        }
+        catch (DbUpdateException ex)
+        {
+            Console.WriteLine($"Errore durante il salvataggio: {ex.Message}");
+            throw;
+        }
+    }
+}

@@ -1,0 +1,338 @@
+﻿@page "/docenti/importa-massa"
+@inject NavigationManager Navigation
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext Db
+@using BCrypt.Net
+
+<PageTitle>Importa Docenti in Massa</PageTitle>
+
+<div class="elenco-studenti-mainbox animate-fadein">
+    <div class="elenco-studenti-container">
+        <div class="elenco-studenti-header">
+            <h2>
+                <i class="fas fa-chalkboard-teacher me-2"></i>
+                Importa Docenti in Massa
+            </h2>
+            <button class="btn btn-secondary elenco-studenti-btn" @onclick="TornaIndietro">
+                <i class="fas fa-arrow-left"></i> Torna indietro
+            </button>
+        </div>
+
+        <div class="glass-card p-4 mb-4">
+            <div class="mb-3">
+                <label>Dominio Email Personalizzato:</label>
+                <input @bind="DominioEmail" class="form-control glass-input" placeholder="es. scuola.it" />
+            </div>
+            <div class="mb-3">
+                <label>
+                    Prefisso Email Personalizzato (opzionale):
+                    <span class="text-muted ms-2" style="font-size:0.98em;">
+                        es: <span style="font-family:monospace;">
+                            @GetEsempioEmail()
+                        </span>
+                    </span>
+                </label>
+                <input @bind="PrefissoEmail" class="form-control glass-input" placeholder="es. registro (opzionale)" />
+            </div>
+            <div class="mb-3">
+                <label>
+                    Inserisci ogni docente su una riga (Cognome Nome):
+                </label>
+                <textarea @bind="InputDocenti" class="form-control glass-input" rows="6" placeholder="es.
+Rossi Mario
+Bianchi Luca
+Verdi Anna"></textarea>
+            </div>
+            <button class="btn btn-primary elenco-studenti-btn" @onclick="GeneraDocenti" disabled="@(!PuoiGenerareDocenti)">
+                <i class="fas fa-users"></i> Genera Docenti
+            </button>
+            @if (!string.IsNullOrWhiteSpace(MessaggioErrore))
+            {
+                <div class="alert alert-danger mt-3">@MessaggioErrore</div>
+            }
+        </div>
+
+        @if (DocentiGenerati?.Any() == true)
+        {
+            <div class="glass-card p-4 mb-4">
+                <h4>Anteprima Docenti Generati</h4>
+                <div class="row g-3">
+                    @foreach (var docente in DocentiGenerati)
+                    {
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <span class="fw-bold">@docente.Cognome @docente.Nome</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <span class="badge bg-light text-dark" style="font-size:0.98em;">
+                                            <i class="fas fa-envelope me-1"></i>@docente.Email
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 fw-semibold" style="font-size:0.98em;">Materie insegnate (opzionale):</label>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach (var materia in Materie)
+                                            {
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input"
+                                                           type="checkbox"
+                                                           id="materia_@(docente.Username)_@(materia.Id)"
+                                                           value="@materia.Id"
+                                                           checked="@docente.MaterieSelezionate.Contains(materia.Id)"
+                                                           @onchange="@((ChangeEventArgs e) => ToggleMateria(docente, materia.Id, e.Value))" />
+                                                    <label class="form-check-label" for="materia_@(docente.Username)_@(materia.Id)">@materia.Nome</label>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <button class="btn btn-success elenco-studenti-btn mt-4" @onclick="SalvaDocenti">
+                    <i class="fas fa-save"></i> Salva Docenti
+                </button>
+                @if (MessaggioSalvataggio != null)
+                {
+                    <div class="alert alert-info mt-2">@MessaggioSalvataggio</div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+    private string? InputDocenti { get; set; }
+    private string? DominioEmail { get; set; }
+    private string? PrefissoEmail { get; set; }
+    private string? MessaggioErrore { get; set; }
+    private List<DocentePreview> DocentiGenerati { get; set; } = new();
+    private string? MessaggioSalvataggio { get; set; }
+    private List<Materia> Materie { get; set; } = new();
+
+    private string EsempioUsername => "rossi.mario";
+
+    private string GetEsempioEmail()
+    {
+        if (!string.IsNullOrWhiteSpace(PrefissoEmail))
+            return $"docente.{EsempioUsername}@{PrefissoEmail}.{DominioEmail ?? "scuola.it"}";
+        else
+            return $"docente.{EsempioUsername}@{DominioEmail ?? "scuola.it"}";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Materie = await Db.Materie.ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            MessaggioErrore = $"Errore nel caricamento delle materie: {ex.Message}";
+            Materie = new List<Materia>();
+        }
+    }
+
+    private bool PuoiGenerareDocenti =>
+        !string.IsNullOrWhiteSpace(DominioEmail)
+        && !string.IsNullOrWhiteSpace(InputDocenti);
+
+    private void GeneraDocenti()
+    {
+        MessaggioSalvataggio = null;
+        MessaggioErrore = null;
+        DocentiGenerati = new List<DocentePreview>();
+
+        if (string.IsNullOrWhiteSpace(DominioEmail))
+        {
+            MessaggioErrore = "Deve esserci per forza il dominio email.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(InputDocenti))
+        {
+            MessaggioErrore = "Devi inserire almeno un cognome e nome per generare docenti.";
+            return;
+        }
+
+        var righe = InputDocenti
+            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var riga in righe)
+        {
+            var tokens = riga.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length < 2)
+                continue;
+
+            var cognome = tokens[0].Trim();
+            var nome = string.Join(" ", tokens.Skip(1)).Trim();
+
+            // Sanifica il nome per l'username
+            var cognomePulito = SanificaPerUsername(cognome);
+            var nomePulito = SanificaPerUsername(nome);
+
+            var username = $"docente.{cognomePulito}.{nomePulito}";
+
+            string email;
+            if (!string.IsNullOrWhiteSpace(PrefissoEmail))
+                email = $"{username}@{PrefissoEmail}.{DominioEmail}";
+            else
+                email = $"{username}@{DominioEmail}";
+
+            DocentiGenerati.Add(new DocentePreview
+                {
+                    Cognome = cognome,
+                    Nome = nome,
+                    Username = username,
+                    Email = email,
+                    MaterieSelezionate = new List<int>()
+                });
+        }
+
+        if (!DocentiGenerati.Any())
+        {
+            MessaggioErrore = "Devi inserire almeno un cognome e nome per generare docenti.";
+        }
+    }
+
+    private string SanificaPerUsername(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return string.Empty;
+
+        return input.ToLowerInvariant()
+                   .Replace(" ", "")
+                   .Replace("'", "")
+                   .Replace("à", "a")
+                   .Replace("è", "e")
+                   .Replace("é", "e")
+                   .Replace("ì", "i")
+                   .Replace("ò", "o")
+                   .Replace("ù", "u");
+    }
+
+    private void ToggleMateria(DocentePreview docente, int materiaId, object? value)
+    {
+        bool isChecked = value switch
+        {
+            bool b => b,
+            string s => s == "true" || s == "on",
+            _ => false
+        };
+
+        if (isChecked)
+        {
+            if (!docente.MaterieSelezionate.Contains(materiaId))
+                docente.MaterieSelezionate.Add(materiaId);
+        }
+        else
+        {
+            docente.MaterieSelezionate.Remove(materiaId);
+        }
+    }
+
+    private async Task SalvaDocenti()
+    {
+        if (DocentiGenerati == null || !DocentiGenerati.Any())
+            return;
+
+        try
+        {
+            int salvati = 0;
+
+            foreach (var d in DocentiGenerati)
+            {
+                // Controlla se l'utente esiste già
+                var esisteUtente = await Db.Utenti
+                    .AnyAsync(u => u.Username == d.Username || u.Email == d.Email);
+
+                if (esisteUtente)
+                    continue;
+
+                var utente = new Utente
+                    {
+                        Username = d.Username ?? string.Empty,
+                        Email = d.Email ?? string.Empty,
+                        PasswordHash = BCrypt.HashPassword("changeme"),
+                        Ruolo = RuoloUtente.Docente,
+                        Attivo = true,
+                        DataCreazione = DateTime.UtcNow
+                    };
+
+                var profilo = new Profilo
+                    {
+                        Nome = d.Nome ?? string.Empty,
+                        Cognome = d.Cognome ?? string.Empty,
+                        Utente = utente,
+                        DataCreazione = DateTime.UtcNow,
+                        DataNascita = DateTime.UtcNow,
+                        CodiceFiscale = $"CFIMPORT{Guid.NewGuid().ToString("N")[..8]}",
+                        Indirizzo = string.Empty,
+                        Telefono = string.Empty,
+                        InfoAggiuntive = string.Empty
+                    };
+
+                var docente = new Docente
+                    {
+                        Utente = utente
+                    };
+
+                Db.Utenti.Add(utente);
+                Db.Profili.Add(profilo);
+                Db.Docenti.Add(docente);
+
+                // Salva prima per ottenere l'ID del docente
+                await Db.SaveChangesAsync();
+
+                // Associa le materie selezionate (senza classe)
+                foreach (var materiaId in d.MaterieSelezionate)
+                {
+                    var materiaClasse = new MateriaClasse
+                        {
+                            MateriaId = materiaId,
+                            DocenteId = docente.UtenteId
+                            // ClasseId non valorizzato!
+                        };
+                    Db.MaterieClassi.Add(materiaClasse);
+                }
+
+                salvati++;
+            }
+
+            await Db.SaveChangesAsync();
+
+            MessaggioSalvataggio = $"Salvati {salvati} docenti!";
+            DocentiGenerati.Clear();
+            InputDocenti = string.Empty;
+
+            // Aspetta un po' prima di tornare indietro per mostrare il messaggio
+            await Task.Delay(2000);
+            TornaIndietro();
+        }
+        catch (Exception ex)
+        {
+            MessaggioErrore = $"Errore durante il salvataggio: {ex.Message}";
+        }
+    }
+
+    private void TornaIndietro()
+    {
+        Navigation.NavigateTo("/docenti");
+    }
+
+    public class DocentePreview
+    {
+        public string? Cognome { get; set; }
+        public string? Nome { get; set; }
+        public string? Username { get; set; }
+        public string? Email { get; set; }
+        public List<int> MaterieSelezionate { get; set; } = new();
+    }
+}

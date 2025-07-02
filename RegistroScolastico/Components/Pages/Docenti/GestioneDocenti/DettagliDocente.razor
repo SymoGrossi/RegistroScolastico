@@ -1,0 +1,194 @@
+﻿@page "/docenti/dettagli/{Id:int}"
+@using Microsoft.EntityFrameworkCore
+@using RegistroScolastico.Models
+@using RegistroScolastico.Data
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Dettaglio Docente</PageTitle>
+
+<div class="dettagli-docente-mainbox animate-fadein">
+    <div class="dettagli-docente-container">
+        <div class="dettagli-docente-header">
+            <h2>
+                <i class="fas fa-user-tie me-2"></i>
+                Dettaglio Docente
+            </h2>
+            <button class="btn btn-secondary dettagli-docente-back-btn" @onclick="GoBack" title="Torna alla gestione">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+
+        @if (Docente == null)
+        {
+            <div class="dettagli-docente-loader">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Caricamento...</span>
+                </div>
+                <span class="ms-2">Caricamento docente...</span>
+            </div>
+        }
+        else
+        {
+            <div class="glass-card dettagli-docente-info-card animate-fadein">
+                <div class="card-body">
+                    <h3 class="card-title text-primary mb-3">
+                        <i class="fas fa-id-card me-2"></i>
+                        Info Docente
+                    </h3>
+                    <div class="row mb-2">
+                        <div class="col-12 col-md-6 mb-2 mb-md-0">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-user me-1"></i>
+                                @(Docente.Utente?.Profilo.Cognome?.ToUpperInvariant() ?? "-") @(Docente.Utente?.Profilo.Nome ?? "-")
+                            </span>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-envelope me-1"></i>
+                                @(Docente.Utente?.Email ?? "-")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-12 col-md-6 mb-2 mb-md-0">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-id-card me-1"></i>
+                                Codice Fiscale: @(Docente.Utente?.Profilo?.CodiceFiscale ?? "-")
+                            </span>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-birthday-cake me-1"></i>
+                                Data di Nascita: @(Docente.Utente?.Profilo?.DataNascita != default ? Docente.Utente?.Profilo?.DataNascita.ToString("dd/MM/yyyy") : "-")
+                            </span>
+                        </div>
+                    </div>
+                    <hr class="docente-info-divider mt-4 mb-2" />
+                    <div class="row mb-2">
+                        <div class="col-12 col-md-6 mb-2 mb-md-0">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                Residenza: @(Docente.Utente?.Profilo?.Indirizzo ?? "-")
+                            </span>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <span class="badge badge-info-big">
+                                <i class="fas fa-phone me-1"></i>
+                                Telefono: @(Docente.Utente?.Profilo?.Telefono ?? "-")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <span class="badge badge-info-big">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Info: @(Docente.Utente?.Profilo?.InfoAggiuntive ?? "-")
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card dettagli-docente-collegi-card animate-fadein">
+                <div class="card-body">
+                    <h4 class="mb-3 text-primary">
+                        <i class="fas fa-users-gear me-2"></i>
+                        Collegi Docenti Associati
+                    </h4>
+                    @if (Docente.CollegiDocenti != null && Docente.CollegiDocenti.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var collegio in Docente.CollegiDocenti
+                                .GroupBy(c => c.Id)
+                                .Select(g => g.First()))
+                            {
+                                <li class="list-group-item glass-list-item">
+                                    <i class="fas fa-users-gear text-primary me-2"></i>
+                                    <b>@(collegio?.Nome ?? "-")</b>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="text-muted text-center py-2">Nessun collegio associato.</div>
+                    }
+                </div>
+            </div>
+
+            <div class="glass-card dettagli-docente-materie-card animate-fadein">
+                <div class="card-body">
+                    <h4 class="mb-3 text-primary">
+                        <i class="fas fa-book-open me-2"></i>
+                        Materie Insegnate
+                    </h4>
+                    @{
+                        var materieRaggruppate = Docente.MaterieInsegnate?
+                            .Where(mc => mc.Materia != null && mc.Classe != null && mc.Classe.Anno != null && mc.Classe.Sezione != null && mc.Classe.Corso != null)
+                            .GroupBy(mc => mc.Materia.Nome)
+                            .OrderBy(g => g.Key)
+                            .ToList();
+                    }
+                    @if (materieRaggruppate != null && materieRaggruppate.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var gruppo in materieRaggruppate)
+                            {
+                                <li class="list-group-item glass-list-item">
+                                    <strong>@gruppo.Key</strong>
+                                    <span class="text-muted">
+                                        (
+                                        @string.Join(", ",
+                                            gruppo.Select(mc =>
+                                                $"{mc.Classe?.Anno.Nome}{mc.Classe?.Sezione.Nome} {mc.Classe?.Corso.Nome}"
+                                            )
+                                        )
+                                        )
+                                    </span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="text-muted text-center py-2">Nessuna materia assegnata.</div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private Docente? Docente { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Docente = await DbContext.Docenti
+            .Include(d => d.Utente)
+                .ThenInclude(u => u.Profilo)
+            .Include(d => d.CollegiDocenti)
+            .Include(d => d.MaterieInsegnate)
+                .ThenInclude(mc => mc.Materia)
+            .Include(d => d.MaterieInsegnate)
+                .ThenInclude(mc => mc.Classe)
+                    .ThenInclude(c => c.Anno)
+            .Include(d => d.MaterieInsegnate)
+                .ThenInclude(mc => mc.Classe)
+                    .ThenInclude(c => c.Sezione)
+            .Include(d => d.MaterieInsegnate)
+                .ThenInclude(mc => mc.Classe)
+                    .ThenInclude(c => c.Corso)
+            .FirstOrDefaultAsync(d => d.UtenteId == Id);
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/docenti");
+    }
+}
